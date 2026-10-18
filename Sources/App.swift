@@ -1,5 +1,4 @@
 import SwiftUI
-import ServiceManagement
 
 @main
 struct DisplayDeckApp: App {
@@ -7,7 +6,7 @@ struct DisplayDeckApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(manager: delegate.manager, keys: delegate.keys)
+            MenuView(manager: delegate.manager) { SettingsWindow.shared.show(keys: delegate.keys) }
         } label: {
             Image(nsImage: MenuBarIcon.image)
         }
@@ -21,6 +20,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
+        let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
+        if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(keys: keys) }
+    }
+
+    /// Opening the app again while it's running (Finder, Spotlight, Dock) brings up the settings window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        SettingsWindow.shared.show(keys: keys)
+        return true
+    }
+
+    private var launchedAsLoginItem: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        return event.eventID == kAEOpenApplication
+            && event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -32,11 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct MenuView: View {
     let manager: DisplayManager
-    let keys: MediaKeys
-
-    @AppStorage("brightnessKeys") private var brightnessKeys = true
-    @AppStorage("volumeKeys") private var volumeKeys = false
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    let openSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -47,30 +56,18 @@ struct MenuView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
-                if manager.displays.count > 1 {
-                    Toggle("Mirror displays", isOn: Binding(get: { manager.isMirrored }, set: { manager.setMirrored($0) }))
-                }
-                Toggle("Brightness keys control monitors", isOn: $brightnessKeys)
-                    .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
-                Toggle("Volume keys control monitor speakers", isOn: $volumeKeys)
-                    .onChange(of: volumeKeys) { _, on in if on { keys.start() } }
-                Toggle("Launch at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, on in
-                        do {
-                            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                        } catch {
-                            launchAtLogin = SMAppService.mainApp.status == .enabled
-                        }
-                    }
+            if manager.displays.count > 1 {
+                Toggle("Mirror displays", isOn: Binding(get: { manager.isMirrored }, set: { manager.setMirrored($0) }))
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .font(.callout)
             }
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .font(.callout)
 
             HStack {
                 Button("Refresh Displays") { manager.reload() }
                 Spacer()
+                Button("Settings…") { openSettings() }
+                    .keyboardShortcut(",")
                 Button("Quit") { NSApp.terminate(nil) }
                     .keyboardShortcut("q")
             }
