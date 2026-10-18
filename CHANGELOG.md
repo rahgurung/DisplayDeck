@@ -3,6 +3,10 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.2.1
+
+- **Simpler menu.** The Check for Updates button is gone from the menu footer; it's in *Settings → Updates*, and automatic checks are unchanged.
+
 ## 1.2
 
 ### New
