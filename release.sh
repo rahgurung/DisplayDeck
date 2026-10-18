@@ -13,14 +13,14 @@ if [[ -n "${1:-}" ]]; then
   [[ "$BRANCH" == main ]] || { echo "Start a new release line from main." >&2; exit 1; }
   BRANCH="release/$1"
   git push origin main
-  git switch -c "$BRANCH"
+  git branch "$BRANCH"  # create the release branch without leaving main, so later commits don't land on it
 elif [[ "$BRANCH" != release/* ]]; then
   echo "Usage: ./release.sh <version> on main, or ./release.sh on a release/* branch." >&2
   exit 1
 fi
 
 git push -u origin "$BRANCH"
-SHA=$(git rev-parse HEAD)
+SHA=$(git rev-parse "$BRANCH")
 echo "Waiting for the Release workflow…"
 until RUN=$(gh run list -w release.yml -c "$SHA" -L 1 --json databaseId -q '.[0].databaseId') && [[ -n "$RUN" ]]; do sleep 3; done
 gh run watch "$RUN" --exit-status
