@@ -3,6 +3,10 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.1.1
+
+- **Current macOS look.** DisplayDeck is now built with the latest macOS SDK, so its menu, switches and sliders use the same modern style as the rest of macOS. It still runs on macOS 14 and later.
+
 ## 1.1
 
 ### New
