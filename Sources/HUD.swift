@@ -1,0 +1,66 @@
+import AppKit
+import SwiftUI
+
+/// Small on-screen indicator shown when keys change brightness or volume.
+final class HUD {
+    static let shared = HUD()
+
+    private let panel: NSPanel
+    private let model = Model()
+    private var hideWorkItem: DispatchWorkItem?
+
+    @Observable final class Model {
+        var symbol = "sun.max.fill"
+        var value = 0.5
+    }
+
+    private init() {
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 220, height: 56),
+                        styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.level = .popUpMenu
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        panel.contentView = NSHostingView(rootView: HUDView(model: model))
+    }
+
+    func show(symbol: String, value: Double) {
+        model.symbol = symbol
+        model.value = value
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
+        if let frame = screen?.visibleFrame {
+            panel.setFrameOrigin(NSPoint(x: frame.midX - panel.frame.width / 2, y: frame.minY + 80))
+        }
+        panel.alphaValue = 1
+        panel.orderFrontRegardless()
+
+        hideWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.3
+                self?.panel.animator().alphaValue = 0
+            }
+        }
+        hideWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: item)
+    }
+}
+
+private struct HUDView: View {
+    let model: HUD.Model
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: model.symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 22)
+            ProgressView(value: model.value)
+                .progressViewStyle(.linear)
+        }
+        .padding(.horizontal, 18)
+        .frame(width: 220, height: 56)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
