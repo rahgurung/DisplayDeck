@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     paths: [docs/**, .github/workflows/pages.yml]
+  # Rebuild on every release so the site's download links and version list stay current.
+  release:
+    types: [published, edited, deleted]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +26,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Write releases.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases?per_page=100" --jq '
+            [.[] | select((.draft or .prerelease) | not) | {
+              version: (.tag_name | ltrimstr("v")),
+              date: .published_at,
+              notes: .html_url,
+              dmg: ([.assets[] | select(.name | endswith(".dmg")) | {url: .browser_download_url, size}] | first)
+            } | select(.dmg)]' > docs/releases.json
+          cat docs/releases.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -127,7 +127,8 @@ Sources/
 Resources/
   make-icon.swift       Draws the app icon: swift Resources/make-icon.swift
 docs/                   Website (displaydeck.rahulgurung.com)
-build.sh                Build, install and release (sign, notarize, DMG)
+build.sh                Build, install and release build (sign, notarize, DMG)
+release.sh              Tag and publish a GitHub release (updates the website)
 ```
 
 </details>
@@ -136,10 +137,10 @@ build.sh                Build, install and release (sign, notarize, DMG)
 <summary><b>Releasing</b></summary>
 
 ```sh
-VERSION=1.1 BUILD=2 ./build.sh --release
+./release.sh 1.1
 ```
 
-Signs with your Developer ID, packages `build/DisplayDeck-$VERSION.dmg`, notarizes it with the `DisplayDeck` notarytool keychain profile and staples the ticket. Put `TELEMETRYDECK_APP_ID=…` in an untracked `release.env` to enable analytics in the build.
+Builds with `./build.sh --release` (signs with your Developer ID, packages `build/DisplayDeck-1.1.dmg`, notarizes it with the `DisplayDeck` notarytool keychain profile and staples the ticket), then tags `v1.1` and publishes a GitHub release with the DMG. Publishing the release redeploys the website, so its download buttons point at the new version and the previous one moves to *Older versions*. Put `TELEMETRYDECK_APP_ID=…` in an untracked `release.env` to enable analytics in the build.
 
 </details>
 
