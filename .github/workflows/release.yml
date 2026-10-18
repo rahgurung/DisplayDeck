@@ -59,7 +59,9 @@ jobs:
           rm "$RUNNER_TEMP/notary.p8"
 
       - name: Show toolchain
-        run: xcodebuild -version && swiftc --version
+        run: |
+          ls -d /Applications/Xcode*.app
+          xcodebuild -version && swiftc --version
 
       - name: Build, sign and notarize
         env:

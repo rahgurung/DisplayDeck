@@ -85,7 +85,7 @@ enum Mirroring {
         var config: CGDisplayConfigRef?
         guard CGBeginDisplayConfiguration(&config) == .success else { return }
         let main = CGMainDisplayID()
-        let primary = onlineDisplays().first { CGDisplayIsBuiltin($0) != 0 } ?? main
+        let primary: CGDirectDisplayID = onlineDisplays().first(where: { CGDisplayIsBuiltin($0) != 0 }) ?? main
         let unmirrored: CGDirectDisplayID = 0  // kCGNullDirectDisplay, which some SDKs import as an optional
         for id in onlineDisplays() where id != primary {
             CGConfigureDisplayMirrorOfDisplay(config, id, on ? primary : unmirrored)
