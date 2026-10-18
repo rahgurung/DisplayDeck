@@ -67,7 +67,9 @@ if [[ "${1:-}" == "--release" ]]; then
   rm -rf "$STAGE"
   codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
-  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" ${NOTARY_KEYCHAIN:+--keychain "$NOTARY_KEYCHAIN"} --wait
+  NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+  [[ -n "${NOTARY_KEYCHAIN:-}" ]] && NOTARY_ARGS+=(--keychain "$NOTARY_KEYCHAIN")
+  xcrun notarytool submit "$DMG" "${NOTARY_ARGS[@]}" --wait
   xcrun stapler staple "$DMG"
   spctl --assess --type open --context context:primary-signature --verbose "$DMG"
   echo "Released $DMG"
