@@ -3,6 +3,13 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.2
+
+### New
+- **Automatic updates.** DisplayDeck checks for new versions once a day and offers to install them, with release notes. Use **Check for Updates…** in Settings or the menu to check right away, and turn automatic checks off in *Settings → Updates*.
+
+If you're on 1.1.1 or earlier, install 1.2 by hand once (from the website or with `brew upgrade`); from then on DisplayDeck updates itself.
+
 ## 1.1.1
 
 - **Current macOS look.** DisplayDeck is now built with the latest macOS SDK, so its menu, switches and sliders use the same modern style as the rest of macOS. It still runs on macOS 14 and later.

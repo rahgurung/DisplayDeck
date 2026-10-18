@@ -38,16 +38,17 @@ private struct SettingsView: View {
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
+    @State private var autoUpdate = Updater.shared.automaticallyChecksForUpdates
 
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
 
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 6) {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
-                    .frame(width: 80, height: 80)
+                    .frame(width: 64, height: 64)
                 Text("DisplayDeck")
                     .font(.title2.bold())
                 Text("Version \(version)")
@@ -76,11 +77,22 @@ private struct SettingsView: View {
                 .padding(8)
             }
 
-            GroupBox("Menu") {
-                SwitchRow(title: "Show refresh rate as a separate menu",
-                          detail: "Otherwise it’s shown next to the resolution.",
-                          isOn: $separateRefreshMenu)
+            if Updater.shared.isAvailable {
+                GroupBox("Updates") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SwitchRow(title: "Automatically check for updates",
+                                  detail: "Checks once a day and asks before installing.", isOn: $autoUpdate)
+                            .onChange(of: autoUpdate) { _, on in Updater.shared.automaticallyChecksForUpdates = on }
+                        Divider()
+                        HStack {
+                            Spacer()
+                            Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                                .controlSize(.small)
+                                .disabled(!Updater.shared.canCheckForUpdates)
+                        }
+                    }
                     .padding(8)
+                }
             }
 
             GroupBox("General") {
@@ -94,12 +106,15 @@ private struct SettingsView: View {
                             }
                         }
                     Divider()
+                    SwitchRow(title: "Show refresh rate as a separate menu",
+                              detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)
+                    Divider()
                     SwitchRow(title: "Show this window when DisplayDeck opens",
                               detail: "Otherwise it starts quietly in the menu bar.", isOn: $showAtLaunch)
                     if Telemetry.isAvailable {
                         Divider()
                         SwitchRow(title: "Share anonymous usage stats",
-                                  detail: "App and macOS version, display count and which features are on. Nothing personal.",
+                                  detail: "Versions and which features you use. Nothing personal.",
                                   isOn: $shareAnalytics)
                     }
                 }
@@ -114,7 +129,7 @@ private struct SettingsView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 32)
+        .padding(.top, 24)
         .padding(.bottom, 20)
         .frame(width: 460)
         .onReceive(poll) { _ in trusted = AXIsProcessTrusted() }

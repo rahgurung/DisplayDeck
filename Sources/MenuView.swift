@@ -30,6 +30,10 @@ struct MenuView: View {
                     .foregroundStyle(.secondary)
                     .padding(.leading, 6)
                 Spacer()
+                if Updater.shared.isAvailable {
+                    FooterButton(title: "Check for Updates…", systemImage: "arrow.down.circle") { Updater.shared.checkForUpdates() }
+                        .disabled(!Updater.shared.canCheckForUpdates)
+                }
                 FooterButton(title: "Refresh displays", systemImage: "arrow.clockwise") { manager.reload() }
                 FooterButton(title: "Settings…", systemImage: "gearshape") { openSettings() }
                     .keyboardShortcut(",")
