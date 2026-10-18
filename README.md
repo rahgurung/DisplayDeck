@@ -148,6 +148,8 @@ Releases are cut from **release branches** and built on GitHub.
 | Push more commits to `release/1.1`, or commit there and run `./release.sh` | **1.1.1**, then **1.1.2**, … |
 | Push `release/1.2.3` | exactly **1.2.3**, once |
 
+Before cutting a release, add a `## <version>` section to [CHANGELOG.md](CHANGELOG.md); it becomes the GitHub release notes (patch releases without a section get the list of commits instead).
+
 Every push to a `release/*` branch runs the [Release workflow](.github/workflows/release.yml) on a macOS runner. It signs the app with the Developer ID certificate, notarizes and staples the DMG, and publishes the GitHub release. It then redeploys the website from the release branch, so the download buttons switch to the new version and the previous one moves to *Older versions*, and updates the cask in [rahgurung/homebrew-tap](https://github.com/rahgurung/homebrew-tap). Fixes made on a release branch should be merged back into `main`. The workflow can also be started by hand from **Actions → Release → Run workflow**.
 
 The website (`docs/`) also changes only with releases; pushing to `main` never deploys it. To publish a website-only fix between releases, run **Actions → Deploy website to GitHub Pages → Run workflow** on `main`.
