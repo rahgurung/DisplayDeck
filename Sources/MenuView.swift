@@ -1,0 +1,190 @@
+import AppKit
+import SwiftUI
+
+/// The panel shown from the menu bar icon: one card per display, then mirroring and the footer actions.
+struct MenuView: View {
+    let manager: DisplayManager
+    let openSettings: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(manager.displays) { display in
+                DisplayCard(display: display)
+            }
+
+            if manager.displays.count > 1 {
+                Toggle(isOn: Binding(get: { manager.isMirrored }, set: { manager.setMirrored($0) })) {
+                    Label("Mirror displays", systemImage: "rectangle.on.rectangle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(CardBackground())
+            }
+
+            HStack(spacing: 2) {
+                Text("DisplayDeck")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 6)
+                Spacer()
+                FooterButton(title: "Refresh displays", systemImage: "arrow.clockwise") { manager.reload() }
+                FooterButton(title: "Settings…", systemImage: "gearshape") { openSettings() }
+                    .keyboardShortcut(",")
+                FooterButton(title: "Quit DisplayDeck", systemImage: "power") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q")
+            }
+        }
+        .padding(10)
+        .frame(width: 340)
+        .onAppear { Telemetry.send("Menu.opened") }
+    }
+}
+
+struct DisplayCard: View {
+    let display: Display
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: display.isBuiltin ? "laptopcomputer" : "display")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(display.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    Text(display.sourceLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .layoutPriority(1)
+                Spacer(minLength: 8)
+                ModeMenu(display: display)
+            }
+
+            VStack(spacing: 6) {
+                SliderRow(symbol: "sun.max.fill", label: "Brightness", value: display.brightness, disabled: display.probing) {
+                    display.setBrightness($0)
+                }
+                if let contrast = display.contrast {
+                    SliderRow(symbol: "circle.lefthalf.filled", label: "Contrast", value: contrast) { display.setContrast($0) }
+                }
+                if let volume = display.volume {
+                    SliderRow(symbol: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "Volume", value: volume) {
+                        display.setVolume($0)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(CardBackground())
+    }
+}
+
+/// Compact resolution / refresh rate menu shown in a display card's header.
+private struct ModeMenu: View {
+    let display: Display
+
+    var body: some View {
+        let current = display.currentMode
+        Menu {
+            Picker("Resolution", selection: Binding(
+                get: { current.flatMap { cur in display.resolutionOptions.first { $0.sizeKey == cur.sizeKey } } },
+                set: { if let option = $0 { display.apply(option) } }
+            )) {
+                ForEach(display.resolutionOptions) { option in
+                    Text(option.sizeLabel).tag(Optional(option))
+                }
+            }
+            .pickerStyle(.inline)
+
+            if display.refreshOptions.count > 1 {
+                Picker("Refresh Rate", selection: Binding(
+                    get: { current },
+                    set: { if let option = $0 { display.apply(option) } }
+                )) {
+                    ForEach(display.refreshOptions) { option in
+                        Text(option.refreshLabel).tag(Optional(option))
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(verbatim: current.map { "\($0.width) × \($0.height)" } ?? "Resolution")
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(.primary.opacity(0.06)))
+            .contentShape(Capsule())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Resolution and refresh rate")
+    }
+}
+
+struct SliderRow: View {
+    let symbol: String
+    let label: String
+    let value: Double
+    var disabled = false
+    let onChange: (Double) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            Slider(value: Binding(get: { value }, set: onChange), in: 0...1)
+                .controlSize(.small)
+                .accessibilityLabel(label)
+            Text("\(Int((value * 100).rounded()))")
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 24, alignment: .trailing)
+        }
+        .disabled(disabled)
+    }
+}
+
+private struct FooterButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+}
+
+private struct CardBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(.primary.opacity(0.06))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.06), lineWidth: 0.5)
+            )
+    }
+}
