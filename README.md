@@ -128,7 +128,8 @@ Resources/
   make-icon.swift       Draws the app icon: swift Resources/make-icon.swift
 docs/                   Website (displaydeck.rahulgurung.com)
 build.sh                Build, install and release build (sign, notarize, DMG)
-release.sh              Tag and publish a GitHub release (updates the website)
+release.sh              Start the Release workflow on GitHub
+Packaging/              Homebrew cask template, release secrets helper
 ```
 
 </details>
@@ -136,11 +137,17 @@ release.sh              Tag and publish a GitHub release (updates the website)
 <details>
 <summary><b>Releasing</b></summary>
 
+Releases are built on GitHub. Start one from **Actions → Release → Run workflow**, or:
+
 ```sh
 ./release.sh 1.1
 ```
 
-Builds with `./build.sh --release` (signs with your Developer ID, packages `build/DisplayDeck-1.1.dmg`, notarizes it with the `DisplayDeck` notarytool keychain profile and staples the ticket), then tags `v1.1` and publishes a GitHub release with the DMG. Publishing the release redeploys the website, so its download buttons point at the new version and the previous one moves to *Older versions*. Put `TELEMETRYDECK_APP_ID=…` in an untracked `release.env` to enable analytics in the build.
+The [Release workflow](.github/workflows/release.yml) builds on a macOS runner, signs with the Developer ID certificate, notarizes and staples the DMG, publishes the `v1.1` GitHub release, redeploys the website (its download buttons switch to the new version and the previous one moves to *Older versions*) and updates the cask in [rahgurung/homebrew-tap](https://github.com/rahgurung/homebrew-tap).
+
+One-time setup: export the Developer ID Application certificate as a `.p12`, create an App Store Connect API key, then run `Packaging/set-release-secrets.sh <cert.p12> <AuthKey.p8> <key-id> <issuer-id>`. The TelemetryDeck App ID is the `TELEMETRYDECK_APP_ID` repository variable.
+
+To build a release locally instead: `VERSION=1.1 ./build.sh --release` (needs the certificate in your keychain and a `DisplayDeck` notarytool profile).
 
 </details>
 

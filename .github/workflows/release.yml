@@ -1,0 +1,97 @@
+name: Release
+
+# Builds, signs, notarizes and publishes a release, then updates the website and the Homebrew cask.
+# Start it from the Actions tab (Release → Run workflow) or with `./release.sh <version>`.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, e.g. 1.1
+        required: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      VERSION: ${{ inputs.version }}
+      TAG: v${{ inputs.version }}
+      HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version
+        run: |
+          echo "KEYCHAIN=$RUNNER_TEMP/release.keychain-db" >> "$GITHUB_ENV"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "::error::Version must look like 1.2 or 1.2.3"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then echo "::error::$TAG already exists"; exit 1; fi
+
+      - name: Import Developer ID certificate
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Store notarization credentials
+        env:
+          KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          echo "$KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials DisplayDeck --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER_ID" --keychain "$KEYCHAIN"
+          rm "$RUNNER_TEMP/notary.p8"
+
+      - name: Build, sign and notarize
+        env:
+          TELEMETRYDECK_APP_ID: ${{ vars.TELEMETRYDECK_APP_ID }}
+        run: NOTARY_KEYCHAIN="$KEYCHAIN" BUILD=$(( $(git tag -l 'v*' | wc -l) + 1 )) ./build.sh --release
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "build/DisplayDeck-$VERSION.dmg" \
+            --target "$GITHUB_SHA" --title "DisplayDeck $VERSION" --generate-notes
+
+      # Releases created with GITHUB_TOKEN don't trigger other workflows, so start the site deploy explicitly.
+      - name: Update website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
+
+      - name: Update Homebrew cask
+        if: env.HOMEBREW_TAP_DEPLOY_KEY != ''
+        run: |
+          SHA=$(shasum -a 256 "build/DisplayDeck-$VERSION.dmg" | cut -d' ' -f1)
+          mkdir -p ~/.ssh
+          echo "$HOMEBREW_TAP_DEPLOY_KEY" > ~/.ssh/tap_key && chmod 600 ~/.ssh/tap_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o StrictHostKeyChecking=accept-new"
+          git clone git@github.com:rahgurung/homebrew-tap.git "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          mkdir -p Casks
+          sed -e "s/@VERSION@/$VERSION/" -e "s/@SHA256@/$SHA/" "$GITHUB_WORKSPACE/Packaging/displaydeck.rb" > Casks/displaydeck.rb
+          git add Casks/displaydeck.rb
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "displaydeck $VERSION"
+          git push
+
+      - name: Clean up keychain
+        if: always()
+        run: '[[ -z "${KEYCHAIN:-}" ]] || security delete-keychain "$KEYCHAIN" 2>/dev/null || true'
