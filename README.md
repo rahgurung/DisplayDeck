@@ -38,7 +38,7 @@ Release builds send a few anonymous usage signals to [TelemetryDeck](https://tel
 No Xcode project needed — just the Command Line Tools.
 
 ```sh
-./build.sh            # builds build/DisplayDeck.app (ad-hoc signed)
+./build.sh            # builds build/DisplayDeck.app (signed with your Apple Development certificate if you have one, else ad-hoc)
 ./build.sh --install  # also copies it to /Applications and launches it
 swift Resources/make-icon.swift  # regenerates Resources/AppIcon.icns
 ```

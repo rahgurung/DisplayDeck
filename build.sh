@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Builds DisplayDeck.app into ./build.
 # Usage: ./build.sh [--install | --release]
-#   --install  copy the ad-hoc signed app to /Applications and launch it
+#   --install  copy the app to /Applications and launch it
 #   --release  sign with Developer ID, package build/DisplayDeck-$VERSION.dmg, notarize and staple
 #              (needs a "Developer ID Application" certificate and a notarytool profile named
 #              by $NOTARY_PROFILE, default "DisplayDeck")
@@ -75,8 +75,11 @@ if [[ "${1:-}" == "--release" ]]; then
   exit 0
 fi
 
-codesign --force --sign - "$APP"
-echo "Built $APP"
+# Sign with a stable identity when one exists so macOS keeps the Accessibility grant across rebuilds;
+# ad-hoc signatures change with every build and invalidate it.
+DEV_IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Apple Development: [^"]*"' | head -1 | tr -d '"')
+codesign --force --sign "${DEV_IDENTITY:--}" "$APP"
+echo "Built $APP (signed ${DEV_IDENTITY:-ad-hoc})"
 
 if [[ "${1:-}" == "--install" ]]; then
   pkill -x DisplayDeck 2>/dev/null || true
