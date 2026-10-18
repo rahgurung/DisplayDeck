@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Use the newest stable Xcode on the runner: apps get the current macOS look only when built with a recent SDK.
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_[0-9]*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          echo "Using $XCODE"
+
       - name: Show toolchain
         run: xcodebuild -version && swiftc --version
 

@@ -63,6 +63,13 @@ jobs:
           xcrun notarytool store-credentials DisplayDeck --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER_ID" --keychain "$KEYCHAIN"
           rm "$RUNNER_TEMP/notary.p8"
 
+      # Use the newest stable Xcode on the runner: apps get the current macOS look only when built with a recent SDK.
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_[0-9]*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          echo "Using $XCODE"
+
       - name: Show toolchain
         run: |
           ls -d /Applications/Xcode*.app
