@@ -58,6 +58,9 @@ jobs:
           xcrun notarytool store-credentials DisplayDeck --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER_ID" --keychain "$KEYCHAIN"
           rm "$RUNNER_TEMP/notary.p8"
 
+      - name: Show toolchain
+        run: xcodebuild -version && swiftc --version
+
       - name: Build, sign and notarize
         env:
           TELEMETRYDECK_APP_ID: ${{ vars.TELEMETRYDECK_APP_ID }}
