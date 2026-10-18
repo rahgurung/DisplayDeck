@@ -46,6 +46,8 @@ struct MenuView: View {
 struct DisplayCard: View {
     let display: Display
 
+    @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
@@ -63,7 +65,19 @@ struct DisplayCard: View {
                 }
                 .layoutPriority(1)
                 Spacer(minLength: 8)
-                ModeMenu(display: display)
+                if !separateRefreshMenu {
+                    ModeMenu(display: display, includesRefresh: true)
+                }
+            }
+
+            if separateRefreshMenu {
+                HStack(spacing: 6) {
+                    ModeMenu(display: display, includesRefresh: false)
+                    if display.refreshChoices.count > 1 {
+                        RefreshMenu(display: display)
+                    }
+                }
+                .padding(.leading, 32)
             }
 
             VStack(spacing: 6) {
@@ -85,12 +99,15 @@ struct DisplayCard: View {
     }
 }
 
-/// Compact resolution / refresh rate menu shown in a display card's header.
+/// Resolution menu shown as a pill in a display card. When `includesRefresh` is set it also lists refresh rates
+/// and shows the current rate in its label, as long as there is more than one to choose from.
 private struct ModeMenu: View {
     let display: Display
+    let includesRefresh: Bool
 
     var body: some View {
         let current = display.currentMode
+        let showsRefresh = includesRefresh && display.refreshChoices.count > 1
         Menu {
             Picker("Resolution", selection: Binding(
                 get: { current.flatMap { cur in display.resolutionOptions.first { $0.sizeKey == cur.sizeKey } } },
@@ -102,35 +119,74 @@ private struct ModeMenu: View {
             }
             .pickerStyle(.inline)
 
-            if display.refreshOptions.count > 1 {
-                Picker("Refresh Rate", selection: Binding(
-                    get: { current },
-                    set: { if let option = $0 { display.apply(option) } }
-                )) {
-                    ForEach(display.refreshOptions) { option in
-                        Text(option.refreshLabel).tag(Optional(option))
-                    }
-                }
-                .pickerStyle(.inline)
+            if showsRefresh {
+                RefreshPicker(display: display)
             }
         } label: {
-            HStack(spacing: 3) {
-                Text(verbatim: current.map { "\($0.width) × \($0.height)" } ?? "Resolution")
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(.primary.opacity(0.06)))
-            .contentShape(Capsule())
+            let size = current.map { "\($0.width) × \($0.height)" } ?? "Resolution"
+            PillLabel(text: showsRefresh ? "\(size) · \(current?.refreshLabel ?? "")" : size)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Resolution and refresh rate")
+        .help(showsRefresh ? "Resolution and refresh rate" : "Resolution")
+    }
+}
+
+/// Separate refresh rate pill, used when "Show refresh rate as a separate menu" is on.
+private struct RefreshMenu: View {
+    let display: Display
+
+    var body: some View {
+        Menu {
+            RefreshPicker(display: display)
+        } label: {
+            PillLabel(text: display.currentMode?.refreshLabel ?? "Refresh rate")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Refresh rate")
+    }
+}
+
+private struct RefreshPicker: View {
+    let display: Display
+
+    var body: some View {
+        let isHiDPI = display.currentMode?.isHiDPI ?? false
+        Picker("Refresh Rate", selection: Binding(
+            get: { display.currentMode.map { Int($0.refresh.rounded()) } },
+            set: { rate in
+                if let choice = display.refreshChoices.first(where: { $0.rate == rate }) { display.apply(choice.mode) }
+            }
+        )) {
+            ForEach(display.refreshChoices) { choice in
+                let note = choice.changesHiDPI ? (isHiDPI ? "  (turns off HiDPI)" : "  (turns on HiDPI)") : ""
+                Text(verbatim: choice.mode.refreshLabel + note).tag(Optional(choice.rate))
+            }
+        }
+        .pickerStyle(.inline)
+    }
+}
+
+private struct PillLabel: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(verbatim: text)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8, weight: .bold))
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(.primary.opacity(0.06)))
+        .contentShape(Capsule())
     }
 }
 

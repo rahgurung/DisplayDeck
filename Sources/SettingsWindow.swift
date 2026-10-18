@@ -35,6 +35,7 @@ private struct SettingsView: View {
     @AppStorage("volumeKeys") private var volumeKeys = false
     @AppStorage("showWindowAtLaunch") private var showAtLaunch = true
     @AppStorage("shareAnalytics") private var shareAnalytics = true
+    @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
 
@@ -73,6 +74,13 @@ private struct SettingsView: View {
                     }
                 }
                 .padding(8)
+            }
+
+            GroupBox("Menu") {
+                SwitchRow(title: "Show refresh rate as a separate menu",
+                          detail: "Otherwise it’s shown next to the resolution.",
+                          isOn: $separateRefreshMenu)
+                    .padding(8)
             }
 
             GroupBox("General") {

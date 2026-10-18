@@ -118,9 +118,31 @@ final class Display: Identifiable {
         return order.compactMap { bySize[$0] }
     }
 
-    var refreshOptions: [ModeOption] {
+    struct RefreshChoice: Identifiable {
+        let mode: ModeOption
+        let rate: Int
+        /// Reaching this rate means switching between the HiDPI and non-HiDPI variant of the resolution.
+        let changesHiDPI: Bool
+        var id: Int { rate }
+    }
+
+    /// Every refresh rate available at the current resolution, whether or not it needs the other HiDPI variant
+    /// (some monitors only offer high rates without HiDPI). Prefers the current variant for each rate.
+    var refreshChoices: [RefreshChoice] {
         guard let currentMode else { return [] }
-        return modes.filter { $0.sizeKey == currentMode.sizeKey }
+        func rank(_ mode: ModeOption) -> Int {
+            mode.sizeKey == currentMode.sizeKey ? 0 : mode.isHiDPI == currentMode.isHiDPI ? 1 : 2
+        }
+        var byRate: [Int: ModeOption] = [:]
+        for mode in modes where mode.width == currentMode.width && mode.height == currentMode.height {
+            let rate = Int(mode.refresh.rounded())
+            if let existing = byRate[rate], rank(existing) <= rank(mode) { continue }
+            byRate[rate] = mode
+        }
+        return byRate.keys.sorted().map { rate in
+            let mode = byRate[rate]!
+            return RefreshChoice(mode: mode, rate: rate, changesHiDPI: mode.isHiDPI != currentMode.isHiDPI)
+        }
     }
 
     func apply(_ option: ModeOption) {
