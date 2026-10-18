@@ -2,3 +2,5 @@ build/
 .DS_Store
 release.env
 docs/releases.json
+.sparkle/
+__pycache__/

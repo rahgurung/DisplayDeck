@@ -39,6 +39,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 | 🪞 **Mirroring** | Toggle display mirroring straight from the menu. |
 | 🌗 **Software dimming fallback** | Displays that can't be controlled over DDC still dim, in software. |
 | 🚀 **Launch at login** | Starts quietly in the menu bar when you log in. |
+| 🔄 **Automatic updates** | Checks for new versions daily and installs them with one click, via [Sparkle](https://sparkle-project.org). |
 
 ## 📦 Install
 
@@ -96,6 +97,8 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 - How many displays are connected and how each is controlled (DDC / software / Apple)
 - Which options are on, and when the menu or settings window is opened
 
+Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → Updates**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
+
 Each install is identified only by a hashed random ID. Nothing about you, your files or your screen is collected. Turn it off in **Settings → Share anonymous usage stats**. Builds from source send nothing.
 
 ## 🛠️ Build from source
@@ -127,12 +130,13 @@ Sources/
   SettingsWindow.swift  Settings window
   MenuBarIcon.swift     Menu bar template glyph
   Telemetry.swift       Anonymous usage signals (TelemetryDeck)
+  Updater.swift         In-app updates (Sparkle)
 Resources/
   make-icon.swift       Draws the app icon: swift Resources/make-icon.swift
 docs/                   Website (displaydeck.rahulgurung.com)
 build.sh                Build, install and release build (sign, notarize, DMG)
 release.sh              Cut or update a release branch, which triggers the Release workflow
-Packaging/              Cask template, release versioning and secrets helpers
+Packaging/              Cask template, site/appcast data, release versioning and secrets helpers
 ```
 
 </details>
@@ -154,7 +158,7 @@ Every push to a `release/*` branch runs the [Release workflow](.github/workflows
 
 The website (`docs/`) also changes only with releases; pushing to `main` never deploys it. To publish a website-only fix between releases, run **Actions → Deploy website to GitHub Pages → Run workflow** on `main`.
 
-One-time setup: export the Developer ID Application certificate as a `.p12`, create an App Store Connect API key, then run `Packaging/set-release-secrets.sh <cert.p12> <AuthKey.p8> <key-id> <issuer-id>`. The TelemetryDeck App ID is the `TELEMETRYDECK_APP_ID` repository variable.
+One-time setup: export the Developer ID Application certificate as a `.p12`, create an App Store Connect API key, then run `Packaging/set-release-secrets.sh <cert.p12> <AuthKey.p8> <key-id> <issuer-id>`. Updates are signed with an EdDSA key (`SPARKLE_PRIVATE_KEY` secret; the original is in the maintainer's login keychain under the "DisplayDeck" account, and the public key is in `build.sh`). Each release uploads `appcast.json` with the DMG's signature, and the site deploy turns those into `appcast.xml`. Build numbers come from the number of `v*` tags, so never delete a release tag. The TelemetryDeck App ID is the `TELEMETRYDECK_APP_ID` repository variable.
 
 To build a release locally instead: `VERSION=1.1 ./build.sh --release` (needs the certificate in your keychain and a `DisplayDeck` notarytool profile).
 

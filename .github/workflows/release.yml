@@ -36,7 +36,8 @@ jobs:
         run: |
           VERSION=$(Packaging/release-version.sh "${REQUESTED#release/}") || { echo "::error::Can't release from '$REQUESTED'"; exit 1; }
           echo "Releasing $VERSION from $GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
-          { echo "VERSION=$VERSION"; echo "TAG=v$VERSION"; echo "KEYCHAIN=$RUNNER_TEMP/release.keychain-db"; } >> "$GITHUB_ENV"
+          BUILD=$(( $(git tag -l 'v*' | wc -l) + 1 ))
+          { echo "VERSION=$VERSION"; echo "TAG=v$VERSION"; echo "BUILD=$BUILD"; echo "KEYCHAIN=$RUNNER_TEMP/release.keychain-db"; } >> "$GITHUB_ENV"
 
       - name: Import Developer ID certificate
         env:
@@ -78,7 +79,22 @@ jobs:
       - name: Build, sign and notarize
         env:
           TELEMETRYDECK_APP_ID: ${{ vars.TELEMETRYDECK_APP_ID }}
-        run: NOTARY_KEYCHAIN="$KEYCHAIN" BUILD=$(( $(git tag -l 'v*' | wc -l) + 1 )) ./build.sh --release
+        run: NOTARY_KEYCHAIN="$KEYCHAIN" ./build.sh --release
+
+      # Sparkle verifies every update against this EdDSA signature. The site deploy turns appcast.json into the
+      # update feed (see Packaging/site-data.py).
+      - name: Sign update for Sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+          SIGNATURE=$(.sparkle/Sparkle-*/bin/sign_update --ed-key-file "$RUNNER_TEMP/sparkle_key" "build/DisplayDeck-$VERSION.dmg")
+          rm "$RUNNER_TEMP/sparkle_key"
+          ED_SIGNATURE=$(sed -E 's/.*sparkle:edSignature="([^"]+)".*/\1/' <<< "$SIGNATURE")
+          LENGTH=$(sed -E 's/.* (sparkle:)?length="([0-9]+)".*/\2/' <<< "$SIGNATURE")
+          printf '{"version": "%s", "build": %s, "minimumSystemVersion": "14.0", "length": %s, "edSignature": "%s"}\n' \
+            "$VERSION" "$BUILD" "$LENGTH" "$ED_SIGNATURE" > build/appcast.json
+          cat build/appcast.json
 
       - name: Write release notes
         run: |
@@ -94,7 +110,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" "build/DisplayDeck-$VERSION.dmg" \
+          gh release create "$TAG" "build/DisplayDeck-$VERSION.dmg" build/appcast.json \
             --target "$GITHUB_SHA" --title "DisplayDeck $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
 
       # Releases created with GITHUB_TOKEN don't trigger other workflows, so start the site deploy explicitly,

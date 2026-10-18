@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
+        _ = Updater.shared  // starts scheduled update checks in release builds
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
         if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(keys: keys) }
 

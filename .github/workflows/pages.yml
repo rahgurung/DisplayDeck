@@ -39,18 +39,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.ref }}
-      - name: Write releases.json
+      - name: Write releases.json and appcast.xml
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api "repos/${{ github.repository }}/releases?per_page=100" --jq '
-            [.[] | select((.draft or .prerelease) | not) | {
-              version: (.tag_name | ltrimstr("v")),
-              date: .published_at,
-              notes: .html_url,
-              dmg: ([.assets[] | select(.name | endswith(".dmg")) | {url: .browser_download_url, size}] | first)
-            } | select(.dmg)]' > docs/releases.json
-          cat docs/releases.json
+        run: python3 -I Packaging/site-data.py "$GITHUB_REPOSITORY" docs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
