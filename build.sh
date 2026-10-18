@@ -5,10 +5,13 @@
 #   --release  sign with Developer ID, package build/DisplayDeck-$VERSION.dmg, notarize and staple
 #              (needs a "Developer ID Application" certificate and a notarytool profile named
 #              by $NOTARY_PROFILE, default "DisplayDeck")
+# Set TELEMETRYDECK_APP_ID to enable anonymous usage stats; non-release builds send them as test signals.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 VERSION=${VERSION:-1.0}
+TELEMETRYDECK_APP_ID=${TELEMETRYDECK_APP_ID:-}
+[[ "${1:-}" == "--release" ]] && TEST_MODE=false || TEST_MODE=true
 BUILD=${BUILD:-1}
 NOTARY_PROFILE=${NOTARY_PROFILE:-DisplayDeck}
 APP=build/DisplayDeck.app
@@ -39,6 +42,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>LSUIElement</key><true/>
   <key>NSHumanReadableCopyright</key><string>© 2026 Rahul Gurung. MIT License.</string>
+  <key>TelemetryDeckAppID</key><string>$TELEMETRYDECK_APP_ID</string>
+  <key>TelemetryDeckTestMode</key><$TEST_MODE/>
 </dict>
 </plist>
 PLIST

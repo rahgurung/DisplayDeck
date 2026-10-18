@@ -24,6 +24,7 @@ final class SettingsWindow {
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+        Telemetry.send("Settings.opened")
     }
 }
 
@@ -33,6 +34,7 @@ private struct SettingsView: View {
     @AppStorage("brightnessKeys") private var brightnessKeys = true
     @AppStorage("volumeKeys") private var volumeKeys = false
     @AppStorage("showWindowAtLaunch") private var showAtLaunch = true
+    @AppStorage("shareAnalytics") private var shareAnalytics = true
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
 
@@ -86,6 +88,12 @@ private struct SettingsView: View {
                     Divider()
                     SwitchRow(title: "Show this window when DisplayDeck opens",
                               detail: "Otherwise it starts quietly in the menu bar.", isOn: $showAtLaunch)
+                    if Telemetry.isAvailable {
+                        Divider()
+                        SwitchRow(title: "Share anonymous usage stats",
+                                  detail: "App and macOS version, display count and which features are on. Nothing personal.",
+                                  isOn: $shareAnalytics)
+                    }
                 }
                 .padding(8)
             }

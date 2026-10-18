@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 @main
@@ -22,6 +23,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
         if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(keys: keys) }
+
+        Telemetry.send("TelemetryDeck.Session.started")
+        Telemetry.send("App.launched", payload: [
+            "atLogin": "\(launchedAsLoginItem)",
+            "launchAtLogin": "\(SMAppService.mainApp.status == .enabled)",
+            "brightnessKeys": "\(keys.brightnessEnabled)",
+            "volumeKeys": "\(keys.volumeEnabled)",
+        ])
+        // Give DDC probing time to settle before reporting how each display is controlled.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [manager] in
+            let externals = manager.displays.filter { !$0.isBuiltin }
+            Telemetry.send("Displays.detected", payload: [
+                "total": "\(manager.displays.count)",
+                "external": "\(externals.count)",
+                "externalDDC": "\(externals.filter { $0.source == .ddc }.count)",
+                "externalSoftware": "\(externals.filter { $0.source == .gamma }.count)",
+                "externalApple": "\(externals.filter { $0.source == .apple }.count)",
+                "withSpeakers": "\(externals.filter { $0.volume != nil }.count)",
+            ])
+        }
     }
 
     /// Opening the app again while it's running (Finder, Spotlight, Dock) brings up the settings window.
@@ -76,6 +97,7 @@ struct MenuView: View {
         }
         .padding(16)
         .frame(width: 330)
+        .onAppear { Telemetry.send("Menu.opened") }
     }
 }
 
