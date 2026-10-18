@@ -128,8 +128,8 @@ Resources/
   make-icon.swift       Draws the app icon: swift Resources/make-icon.swift
 docs/                   Website (displaydeck.rahulgurung.com)
 build.sh                Build, install and release build (sign, notarize, DMG)
-release.sh              Start the Release workflow on GitHub
-Packaging/              Homebrew cask template, release secrets helper
+release.sh              Cut or update a release branch, which triggers the Release workflow
+Packaging/              Cask template, release versioning and secrets helpers
 ```
 
 </details>
@@ -137,13 +137,15 @@ Packaging/              Homebrew cask template, release secrets helper
 <details>
 <summary><b>Releasing</b></summary>
 
-Releases are built on GitHub. Start one from **Actions → Release → Run workflow**, or:
+Releases are cut from **release branches** and built on GitHub.
 
-```sh
-./release.sh 1.1
-```
+| Do this | What gets released |
+|---|---|
+| Push a new `release/1.1` branch, or run `./release.sh 1.1` on `main` | **1.1** |
+| Push more commits to `release/1.1`, or commit there and run `./release.sh` | **1.1.1**, then **1.1.2**, … |
+| Push `release/1.2.3` | exactly **1.2.3**, once |
 
-The [Release workflow](.github/workflows/release.yml) builds on a macOS runner, signs with the Developer ID certificate, notarizes and staples the DMG, publishes the `v1.1` GitHub release, redeploys the website (its download buttons switch to the new version and the previous one moves to *Older versions*) and updates the cask in [rahgurung/homebrew-tap](https://github.com/rahgurung/homebrew-tap).
+Every push to a `release/*` branch runs the [Release workflow](.github/workflows/release.yml) on a macOS runner. It signs the app with the Developer ID certificate, notarizes and staples the DMG, and publishes the GitHub release. It then redeploys the website, so the download buttons switch to the new version and the previous one moves to *Older versions*, and updates the cask in [rahgurung/homebrew-tap](https://github.com/rahgurung/homebrew-tap). Fixes made on a release branch should be merged back into `main`. The workflow can also be started by hand from **Actions → Release → Run workflow**.
 
 One-time setup: export the Developer ID Application certificate as a `.p12`, create an App Store Connect API key, then run `Packaging/set-release-secrets.sh <cert.p12> <AuthKey.p8> <key-id> <issuer-id>`. The TelemetryDeck App ID is the `TELEMETRYDECK_APP_ID` repository variable.
 

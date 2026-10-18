@@ -1,8 +1,11 @@
 name: Release
 
 # Builds, signs, notarizes and publishes a release, then updates the website and the Homebrew cask.
-# Start it from the Actions tab (Release → Run workflow) or with `./release.sh <version>`.
+# Runs on every push to a release/<major>.<minor> branch: the first push releases <major>.<minor>, later pushes
+# release the next patch (see Packaging/release-version.sh). Can also be started by hand from the Actions tab.
 on:
+  push:
+    branches: ['release/*']
   workflow_dispatch:
     inputs:
       version:
@@ -13,25 +16,27 @@ permissions:
   contents: write
   actions: write
 
-concurrency: release
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: macos-15
     env:
-      VERSION: ${{ inputs.version }}
-      TAG: v${{ inputs.version }}
       HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check version
+      - name: Work out version
+        env:
+          REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
         run: |
-          echo "KEYCHAIN=$RUNNER_TEMP/release.keychain-db" >> "$GITHUB_ENV"
-          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "::error::Version must look like 1.2 or 1.2.3"; exit 1; }
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then echo "::error::$TAG already exists"; exit 1; fi
+          VERSION=$(Packaging/release-version.sh "${REQUESTED#release/}") || { echo "::error::Can't release from '$REQUESTED'"; exit 1; }
+          echo "Releasing $VERSION from $GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "VERSION=$VERSION"; echo "TAG=v$VERSION"; echo "KEYCHAIN=$RUNNER_TEMP/release.keychain-db"; } >> "$GITHUB_ENV"
 
       - name: Import Developer ID certificate
         env:
