@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DisplayDeck: your monitors, from the menu bar</title>
+<meta name="description" content="DisplayDeck is a free, open-source Mac menu bar app for external monitor brightness, contrast and volume, with brightness keys that just work.">
+<meta property="og:title" content="DisplayDeck">
+<meta property="og:description" content="Brightness, contrast and volume for your external monitors, right from the Mac menu bar. Free and open source.">
+<meta property="og:image" content="https://displaydeck.rahulgurung.com/icon.png">
+<meta property="og:url" content="https://displaydeck.rahulgurung.com/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+:root {
+  --bg: #F6F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #EEEFF3;
+  --text: #15171E;
+  --muted: #5A5F6E;
+  --line: rgba(20, 22, 30, 0.10);
+  --brand: #3E4BF0;
+  --brand-deep: #1F27A6;
+  --brand-ink: #2C37D6;
+  --panel: rgba(246, 246, 248, 0.86);
+  --panel-text: #1A1C22;
+  --panel-muted: #6B6F7A;
+  --track: rgba(0, 0, 0, 0.12);
+  --code-bg: #15171E;
+  --code-text: #E9EAF0;
+  --radius: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E0F14;
+    --surface: #171920;
+    --surface-2: #1F222B;
+    --text: #EDEEF3;
+    --muted: #A1A5B3;
+    --line: rgba(255, 255, 255, 0.09);
+    --brand-ink: #8E97FF;
+    --panel: rgba(36, 38, 46, 0.86);
+    --panel-text: #F1F2F5;
+    --panel-muted: #9EA2AE;
+    --track: rgba(255, 255, 255, 0.16);
+    --code-bg: #1F222B;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--brand-ink); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+header { padding: 20px 0; }
+header .wrap { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
+.brand img { width: 32px; height: 32px; }
+.nav-link { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 10px; }
+.nav-link:hover { color: var(--text); background: var(--surface-2); }
+
+/* Hero */
+.hero { padding: 48px 0 24px; text-align: center; }
+.hero-icon { width: 128px; height: 128px; margin-bottom: 12px; }
+h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.05; letter-spacing: -0.035em; margin: 0 0 18px; font-weight: 800; }
+.lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 620px; margin: 0 auto 32px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border-radius: 14px; font-weight: 650; font-size: 16px; text-decoration: none;
+  background: var(--brand); color: #fff; box-shadow: 0 6px 20px rgba(62, 75, 240, 0.32);
+}
+.btn:hover { background: var(--brand-deep); }
+.brew {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 6px 0 16px;
+  border-radius: 14px; background: var(--code-bg); color: var(--code-text);
+  font: 14px/1 ui-monospace, "SF Mono", Menlo, monospace; max-width: 100%;
+}
+.brew code { overflow-x: auto; white-space: nowrap; padding: 14px 0; }
+.brew .prompt { color: #8E97FF; margin-right: 4px; user-select: none; }
+.copy {
+  flex: none; border: 0; background: transparent; color: var(--code-text); opacity: 0.7;
+  width: 40px; height: 40px; border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+}
+.copy:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+.req { margin-top: 14px; font-size: 14px; color: var(--muted); }
+
+/* Desktop stage with the menu panel */
+.stage {
+  position: relative; margin: 48px auto 0; max-width: 940px; border-radius: 22px; overflow: hidden;
+  background: linear-gradient(160deg, #4B57F5 0%, #2A33C4 55%, #1A2190 100%);
+  box-shadow: 0 30px 80px rgba(20, 26, 110, 0.28);
+  padding-bottom: 56px;
+}
+.menubar {
+  height: 32px; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 0 14px;
+  background: rgba(255, 255, 255, 0.22); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  color: #fff; font-size: 13px; font-weight: 500;
+}
+.menubar .left { margin-right: auto; display: flex; gap: 18px; font-weight: 600; }
+.menubar .left span + span { font-weight: 500; opacity: 0.9; }
+.mb-item { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 6px; }
+.mb-item.active { background: rgba(255, 255, 255, 0.28); }
+.mb-hide { display: inline; }
+.panel {
+  width: 340px; max-width: calc(100% - 24px); margin: 8px 12px 0 auto; margin-right: max(12px, 9%);
+  background: var(--panel); color: var(--panel-text);
+  backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border-radius: 14px; padding: 16px; text-align: left; font-size: 13px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+}
+.display + .display { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+.d-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.d-name { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; }
+.d-src { font-size: 11px; color: var(--panel-muted); }
+.row { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
+.row svg { flex: none; width: 18px; color: var(--panel-muted); }
+.row output { width: 26px; text-align: right; font-size: 11px; color: var(--panel-muted); font-variant-numeric: tabular-nums; }
+input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 18px; background: transparent; margin: 0; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(var(--brand), var(--brand)) 0 / var(--fill, 50%) 100% no-repeat, var(--track); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--brand); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 3px rgba(0, 0, 0, 0.4); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 3px rgba(0, 0, 0, 0.4); }
+.pickers { display: flex; gap: 8px; margin-top: 10px; }
+.picker { padding: 3px 24px 3px 9px; border-radius: 6px; background: var(--surface); box-shadow: 0 0 0 0.5px var(--line), 0 1px 1.5px rgba(0,0,0,0.08); font-size: 12px; position: relative; }
+.picker::after { content: "⌄"; position: absolute; right: 8px; top: -1px; color: var(--panel-muted); }
+.p-foot { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.toggle-row { display: flex; align-items: center; gap: 8px; }
+.switch { width: 26px; height: 15px; border-radius: 8px; background: var(--brand); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 1.5px; top: 1.5px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+.links { display: flex; gap: 14px; }
+.links span:first-child { margin-right: auto; }
+.links span { color: var(--panel-text); }
+.hud {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  width: 220px; height: 52px; padding: 0 18px; display: flex; align-items: center; gap: 12px;
+  background: var(--panel); color: var(--panel-text); border-radius: 16px;
+  backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  opacity: 0; transition: opacity 0.3s;
+}
+.hud.show { opacity: 1; transition: opacity 0.1s; }
+.hud .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.hud .bar i { display: block; height: 100%; background: var(--panel-text); width: 50%; }
+.stage-hint { text-align: center; color: var(--muted); font-size: 14px; margin: 14px 0 0; }
+
+/* Sections */
+section.wrap { padding-top: 88px; }
+h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.025em; line-height: 1.15; margin: 0 0 14px; font-weight: 800; }
+.section-lede { color: var(--muted); max-width: 640px; margin: 0 0 36px; font-size: 18px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: 0 0 0 1px var(--line); }
+.card .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: rgba(62, 75, 240, 0.12); color: var(--brand-ink); margin-bottom: 16px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.split .card { padding: 28px; }
+.kbd { display: inline-grid; place-items: center; min-width: 26px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--surface-2); box-shadow: inset 0 -1px 0 var(--line); font-size: 13px; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 16px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 32px 1fr; gap: 14px; color: var(--muted); }
+.steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; font-weight: 700; font-size: 14px; }
+.steps strong { color: var(--text); }
+
+.final { text-align: center; padding: 96px 0 0; }
+.final img { width: 88px; height: 88px; }
+footer { padding: 72px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 24px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .split { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  .hero { padding-top: 24px; }
+  .hero-icon { width: 104px; height: 104px; }
+  .grid { grid-template-columns: 1fr; }
+  .stage { border-radius: 16px; padding-bottom: 76px; }
+  .panel { margin: 8px auto 0; }
+  .mb-hide { display: none; }
+  .cta { flex-direction: column; align-items: stretch; }
+  .btn { justify-content: center; }
+  .brew { justify-content: space-between; }
+  section.wrap { padding-top: 64px; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="glyph" viewBox="0 0 22 22">
+    <rect x="3" y="4" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M5.4 6.4h11.2L5.4 12.6Z" fill="currentColor"/>
+    <path d="M8 18.3h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-display" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></g></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19"/></g></symbol>
+  <symbol id="i-keys" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h1M10.5 10h1M14.5 10h1M8 14h8" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-res" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></g></symbol>
+  <symbol id="i-mirror" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="9" height="7" rx="1.5"/><rect x="12.5" y="11" width="9" height="7" rx="1.5"/></g></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></g></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></g></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></g></symbol>
+</svg>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">DisplayDeck</a>
+    <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero wrap">
+    <img class="hero-icon" src="icon.png" alt="DisplayDeck app icon">
+    <h1>Your monitors,<br>from the menu bar.</h1>
+    <p class="lede">Set brightness, contrast and volume on external displays without reaching for their buttons, and make your Mac's brightness keys work on them too. Free and open source.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/rahgurung/DisplayDeck/releases/latest"><svg width="20" height="20" aria-hidden="true"><use href="#i-download"/></svg>Download for Mac</a>
+      <div class="brew"><code><span class="prompt">$</span>brew install --cask rahgurung/tap/displaydeck</code><button class="copy" type="button" aria-label="Copy install command" data-copy="brew install --cask rahgurung/tap/displaydeck"><svg width="18" height="18" aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+    </div>
+    <p class="req">Apple Silicon Mac · macOS 14 Sonoma or later</p>
+
+    <div class="stage" aria-label="Preview of the DisplayDeck menu">
+      <div class="menubar">
+        <div class="left"><span>Finder</span><span class="mb-hide">File</span><span class="mb-hide">Edit</span><span class="mb-hide">View</span></div>
+        <span class="mb-item active"><svg width="18" height="18" role="img" aria-label="DisplayDeck menu bar icon"><use href="#glyph"/></svg></span>
+        <span class="mb-hide">Sun 18 Oct</span><span>10:30</span>
+      </div>
+      <div class="panel">
+        <div class="display">
+          <div class="d-head"><span class="d-name"><svg width="16" height="16" aria-hidden="true"><use href="#i-laptop"/></svg>Built-in Retina Display</span><span class="d-src">Built-in</span></div>
+          <label class="row"><svg height="18" aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="72" aria-label="Built-in display brightness" data-hud="sun"><output>72</output></label>
+        </div>
+        <div class="display">
+          <div class="d-head"><span class="d-name"><svg width="16" height="16" aria-hidden="true"><use href="#i-display"/></svg>Studio Monitor 27</span><span class="d-src">Hardware (DDC)</span></div>
+          <label class="row"><svg height="18" aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="55" aria-label="External display brightness" data-hud="sun"><output>55</output></label>
+          <label class="row"><svg height="18" aria-hidden="true"><use href="#i-contrast"/></svg><input type="range" value="50" aria-label="External display contrast"><output>50</output></label>
+          <label class="row"><svg height="18" aria-hidden="true"><use href="#i-speaker"/></svg><input type="range" value="30" aria-label="External display volume" data-hud="speaker"><output>30</output></label>
+          <div class="pickers"><span class="picker">2560 × 1440</span><span class="picker">60 Hz</span></div>
+        </div>
+        <div class="p-foot">
+          <div class="toggle-row"><span class="switch" aria-hidden="true"></span>Mirror displays</div>
+          <div class="links"><span>Refresh Displays</span><span>Settings…</span><span>Quit</span></div>
+        </div>
+      </div>
+      <div class="hud" aria-hidden="true"><svg width="20" height="20"><use href="#i-sun"/></svg><span class="bar"><i></i></span></div>
+    </div>
+    <p class="stage-hint">Go ahead, drag the sliders.</p>
+  </div>
+
+  <section class="wrap" id="features">
+    <h2>Everything your monitor's buttons do, minus the buttons.</h2>
+    <p class="section-lede">DisplayDeck lives in the menu bar and talks to your displays directly, so the settings you change are the real ones.</p>
+    <div class="grid">
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-sun"/></svg></div><h3>Real brightness</h3><p>Changes the monitor's own backlight over DDC/CI, not a dark overlay, so blacks stay black and power use drops.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-keys"/></svg></div><h3>Brightness keys that work</h3><p>Press <span class="kbd">F1</span> <span class="kbd">F2</span> and the display under your pointer responds, with a clean on-screen indicator.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-speaker"/></svg></div><h3>Monitor speakers</h3><p>Control the volume of speakers built into your monitor, from a slider or your volume keys.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-contrast"/></svg></div><h3>Contrast</h3><p>Fine-tune contrast on monitors that support it, right next to brightness.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-res"/></svg></div><h3>Resolution &amp; refresh rate</h3><p>Switch resolution and refresh rate per display in two clicks, no System Settings detour.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-mirror"/></svg></div><h3>Mirroring &amp; login</h3><p>Toggle display mirroring from the menu, and have DisplayDeck start quietly when you log in.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="how">
+    <h2>How it works</h2>
+    <p class="section-lede">Most monitors accept commands over the same cable that carries the picture. DisplayDeck uses that.</p>
+    <div class="split">
+      <div class="card">
+        <ol class="steps">
+          <li><span><strong>Install and open DisplayDeck.</strong> It appears as <svg width="16" height="16" style="vertical-align: -3px" role="img" aria-label="the DisplayDeck icon"><use href="#glyph"/></svg> in your menu bar.</span></li>
+          <li><span><strong>Click it</strong> to see every connected display with its own sliders.</span></li>
+          <li><span><strong>Optionally allow Accessibility access</strong> so your brightness and volume keys can control external monitors.</span></li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3 style="margin: 0 0 8px; font-size: 18px">Works with most monitors</h3>
+        <p style="margin: 0 0 12px; color: var(--muted); font-size: 15.5px">DisplayPort and USB‑C monitors almost always support hardware control. Some HDMI ports, TVs and docks don't pass it through.</p>
+        <p style="margin: 0; color: var(--muted); font-size: 15.5px">When a display can't be controlled directly, DisplayDeck falls back to software dimming, so the slider always does something.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="privacy">
+    <div class="split">
+      <div class="card">
+        <h3 style="margin: 0 0 8px; font-size: 18px">Private by design</h3>
+        <p style="margin: 0; color: var(--muted); font-size: 15.5px">DisplayDeck sends a few anonymous usage stats (app and macOS version, how many displays you use and which options are on) so it can get better. No personal data, ever, and you can switch it off in Settings.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin: 0 0 8px; font-size: 18px">Open source, MIT licensed</h3>
+        <p style="margin: 0; color: var(--muted); font-size: 15.5px">About 1,000 lines of Swift with no dependencies. Read it, build it yourself, or <a href="https://github.com/rahgurung/DisplayDeck">contribute on GitHub</a>. Releases are signed and notarized by Apple.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="final wrap">
+    <img src="icon.png" alt="">
+    <h2>Take control of your displays.</h2>
+    <div class="cta" style="margin-top: 24px">
+      <a class="btn" href="https://github.com/rahgurung/DisplayDeck/releases/latest"><svg width="20" height="20" aria-hidden="true"><use href="#i-download"/></svg>Download for Mac</a>
+    </div>
+    <p class="req">Free · Apple Silicon · macOS 14+</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>DisplayDeck by <a href="https://rahulgurung.com">Rahul Gurung</a></span>
+    <span><a href="https://github.com/rahgurung/DisplayDeck">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases">Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE">MIT License</a></span>
+  </div>
+</footer>
+
+<script>
+  const hud = document.querySelector('.hud');
+  const hudIcon = hud.querySelector('use');
+  const hudBar = hud.querySelector('.bar i');
+  let hideTimer;
+  document.querySelectorAll('.panel input[type=range]').forEach((input) => {
+    const out = input.nextElementSibling;
+    const paint = () => {
+      out.value = input.value;
+      input.style.setProperty('--fill', input.value + '%');
+    };
+    paint();
+    input.addEventListener('input', () => {
+      paint();
+      if (!input.dataset.hud) return;
+      hudIcon.setAttribute('href', '#i-' + input.dataset.hud);
+      hudBar.style.width = input.value + '%';
+      hud.classList.add('show');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => hud.classList.remove('show'), 1200);
+    });
+  });
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        button.setAttribute('aria-label', 'Copied');
+        setTimeout(() => button.setAttribute('aria-label', 'Copy install command'), 1500);
+      } catch {}
+    });
+  });
+</script>
+</body>
+</html>
