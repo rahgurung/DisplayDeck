@@ -9,6 +9,7 @@
 Brightness, contrast and volume for external displays, plus brightness keys that actually work on them.
 <br>A tiny, free and open-source macOS app.
 
+[![CI](https://img.shields.io/github/actions/workflow/status/rahgurung/DisplayDeck/ci.yml?branch=main&style=flat-square&label=build)](https://github.com/rahgurung/DisplayDeck/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/rahgurung/DisplayDeck?style=flat-square&color=3E4BF0&label=release)](https://github.com/rahgurung/DisplayDeck/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/rahgurung/DisplayDeck/total?style=flat-square&color=3E4BF0)](https://github.com/rahgurung/DisplayDeck/releases)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple&logoColor=white)](#requirements)
@@ -107,6 +108,8 @@ cd DisplayDeck
 ./build.sh            # builds build/DisplayDeck.app
 ./build.sh --install  # also copies it to /Applications and launches it
 ```
+
+Every push to `main` and every pull request is built by [CI](.github/workflows/ci.yml) on GitHub's macOS runner; the built app is attached to each run for 7 days.
 
 Local builds are signed with your Apple Development certificate if you have one, so macOS keeps the Accessibility permission across rebuilds. Otherwise they're ad-hoc signed.
 

@@ -1,0 +1,48 @@
+name: CI
+
+# Checks that the app builds on every push to main and every pull request. Never signs, releases or deploys.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version && swiftc --version
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Check app bundle
+        run: |
+          APP=build/DisplayDeck.app
+          test -x "$APP/Contents/MacOS/DisplayDeck"
+          test -f "$APP/Contents/Resources/AppIcon.icns"
+          plutil -lint "$APP/Contents/Info.plist"
+          codesign --verify --strict "$APP"
+
+      - name: Check scripts
+        run: |
+          zsh -n build.sh release.sh Packaging/set-release-secrets.sh
+          bash -n Packaging/release-version.sh
+          ruby -c Packaging/displaydeck.rb
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DisplayDeck-${{ github.sha }}
+          path: build/DisplayDeck.app
+          retention-days: 7
