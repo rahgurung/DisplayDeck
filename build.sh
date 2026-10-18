@@ -5,10 +5,13 @@
 #   --release  sign with Developer ID, package build/DisplayDeck-$VERSION.dmg, notarize and staple
 #              (needs a "Developer ID Application" certificate and a notarytool profile named
 #              by $NOTARY_PROFILE, default "DisplayDeck")
-# Set TELEMETRYDECK_APP_ID to enable anonymous usage stats; non-release builds send them as test signals.
+# Set TELEMETRYDECK_APP_ID (or put it in release.env) to enable anonymous usage stats; non-release builds
+# send them as test signals.
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Local, untracked settings such as TELEMETRYDECK_APP_ID.
+[[ -f release.env ]] && source release.env
 VERSION=${VERSION:-1.0}
 TELEMETRYDECK_APP_ID=${TELEMETRYDECK_APP_ID:-}
 [[ "${1:-}" == "--release" ]] && TEST_MODE=false || TEST_MODE=true
