@@ -1,10 +1,9 @@
 name: Deploy website to GitHub Pages
 
+# The site only changes with releases: the Release workflow starts this from the release branch it just shipped,
+# and editing or deleting a release redeploys from the latest remaining release. Pushes to main never deploy.
+# Run it by hand (Actions → Deploy website → Run workflow) to publish a website-only fix.
 on:
-  push:
-    branches: [main]
-    paths: [docs/**, .github/workflows/pages.yml]
-  # Rebuild on every release so the site's download links and version list stay current.
   release:
     types: [published, edited, deleted]
   workflow_dispatch:
@@ -25,7 +24,21 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      - name: Choose source
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
+            REF=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || echo "$GITHUB_REF_NAME")
+          else
+            REF=$GITHUB_REF_NAME
+          fi
+          echo "Deploying docs/ from $REF" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
       - name: Write releases.json
         env:
           GH_TOKEN: ${{ github.token }}

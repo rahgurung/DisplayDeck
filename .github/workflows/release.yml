@@ -80,11 +80,12 @@ jobs:
           gh release create "$TAG" "build/DisplayDeck-$VERSION.dmg" \
             --target "$GITHUB_SHA" --title "DisplayDeck $VERSION" --generate-notes
 
-      # Releases created with GITHUB_TOKEN don't trigger other workflows, so start the site deploy explicitly.
+      # Releases created with GITHUB_TOKEN don't trigger other workflows, so start the site deploy explicitly,
+      # from this release branch so the site matches what was just released.
       - name: Update website
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run pages.yml --ref main
+        run: gh workflow run pages.yml --ref "$GITHUB_REF_NAME"
 
       - name: Update Homebrew cask
         if: env.HOMEBREW_TAP_DEPLOY_KEY != ''
