@@ -6,8 +6,10 @@ struct DisplayDeckApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        MenuBarExtra("DisplayDeck", systemImage: "display") {
+        MenuBarExtra {
             MenuView(manager: delegate.manager, keys: delegate.keys)
+        } label: {
+            Image(nsImage: MenuBarIcon.image)
         }
         .menuBarExtraStyle(.window)
     }

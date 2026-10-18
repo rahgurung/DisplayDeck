@@ -36,6 +36,7 @@ No Xcode project needed — just the Command Line Tools.
 ```sh
 ./build.sh            # builds build/DisplayDeck.app (ad-hoc signed)
 ./build.sh --install  # also copies it to /Applications and launches it
+swift Resources/make-icon.swift  # regenerates Resources/AppIcon.icns
 ```
 
 ## License
