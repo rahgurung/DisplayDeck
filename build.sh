@@ -52,7 +52,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 if [[ "${1:-}" == "--release" ]]; then
-  IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"')
+  IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)
   [[ -n "$IDENTITY" ]] || { echo "No 'Developer ID Application' certificate in the keychain" >&2; exit 1; }
   codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
   codesign --verify --strict --verbose=2 "$APP"
@@ -79,7 +79,7 @@ fi
 
 # Sign with a stable identity when one exists so macOS keeps the Accessibility grant across rebuilds;
 # ad-hoc signatures change with every build and invalidate it.
-DEV_IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Apple Development: [^"]*"' | head -1 | tr -d '"')
+DEV_IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Apple Development: [^"]*"' | head -1 | tr -d '"' || true)
 codesign --force --sign "${DEV_IDENTITY:--}" "$APP"
 echo "Built $APP (signed ${DEV_IDENTITY:-ad-hoc})"
 
