@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var keys = MediaKeys(manager: manager)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ReleaseApp.pause()
+        quitOnSIGTERM()
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
         _ = Updater.shared  // starts scheduled update checks in release builds
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
@@ -64,5 +66,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if manager.displays.contains(where: { $0.source == .gamma && $0.brightness < 1 }) {
             GammaDimmer.restoreAll()
         }
+        ReleaseApp.resume()
+    }
+
+    private var sigterm: DispatchSourceSignal?
+
+    /// `pkill` and logging out send SIGTERM, which would otherwise end the app without `applicationWillTerminate`.
+    private func quitOnSIGTERM() {
+        signal(SIGTERM, SIG_IGN)
+        sigterm = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        sigterm?.setEventHandler { NSApp.terminate(nil) }
+        sigterm?.resume()
+    }
+}
+
+/// Development builds are a separate app ("DisplayDeck Dev", `….dev`) that can be installed next to the release. Two
+/// copies talking DDC (or both following the built-in display) fight each other, so while a development build runs,
+/// the release is quit, and it's opened again when the development build quits.
+private enum ReleaseApp {
+    static let bundleID = "com.rahulgurung.DisplayDeck"
+    private static var pausedURL: URL?
+
+    static func pause() {
+        guard Bundle.main.bundleIdentifier != bundleID else { return }
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: bundleID) {
+            pausedURL = app.bundleURL
+            app.terminate()
+        }
+    }
+
+    static func resume() {
+        guard let pausedURL else { return }
+        // `open` rather than NSWorkspace: this process exits right after, which can drop NSWorkspace's request.
+        try? Process.run(URL(fileURLWithPath: "/usr/bin/open"), arguments: ["-g", pausedURL.path])
     }
 }

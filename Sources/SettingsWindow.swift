@@ -55,6 +55,8 @@ private struct SettingsView: View {
 
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    /// "DisplayDeck Dev" for development builds, so they're easy to tell from the release.
+    private let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "DisplayDeck"
 
     var body: some View {
         VStack(spacing: 16) {
@@ -62,7 +64,7 @@ private struct SettingsView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 64, height: 64)
-                Text("DisplayDeck")
+                Text(name)
                     .font(.title2.bold())
                 Text("Version \(version)")
                     .font(.caption)

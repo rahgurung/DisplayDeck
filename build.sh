@@ -1,7 +1,9 @@
 #!/bin/zsh
-# Builds DisplayDeck.app into ./build.
+# Builds DisplayDeck into ./build.
 # Usage: ./build.sh [--install | --release]
-#   --install  copy the app to /Applications and launch it
+#   (none)     build "DisplayDeck Dev" (build/DisplayDeck-Dev.app), a separate app from the release with its own
+#              bundle ID, settings and permissions, so it can be installed next to the release
+#   --install  also copy it to /Applications and launch it
 #   --release  sign with Developer ID, package build/DisplayDeck-$VERSION.dmg, notarize and staple
 #              (needs a "Developer ID Application" certificate and a notarytool profile named
 #              by $NOTARY_PROFILE, default "DisplayDeck")
@@ -21,7 +23,13 @@ TELEMETRYDECK_APP_ID=${TELEMETRYDECK_APP_ID:-}
 [[ "${1:-}" == "--release" ]] && TEST_MODE=false || TEST_MODE=true
 BUILD=${BUILD:-1}
 NOTARY_PROFILE=${NOTARY_PROFILE:-DisplayDeck}
-APP=build/DisplayDeck.app
+# Development builds are a separate app, so testing never replaces the release or resets its settings and permissions.
+if [[ "${1:-}" == "--release" ]]; then
+  NAME=DisplayDeck DISPLAY_NAME=DisplayDeck BUNDLE_ID=com.rahulgurung.DisplayDeck
+else
+  NAME=DisplayDeck-Dev DISPLAY_NAME="DisplayDeck Dev" BUNDLE_ID=com.rahulgurung.DisplayDeck.dev
+fi
+APP=build/$NAME.app
 
 SPARKLE_VERSION=2.10.0
 SPARKLE_SHA256=c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
@@ -48,7 +56,7 @@ swiftc -O -parse-as-library -swift-version 5 \
   -target arm64-apple-macos14.0 \
   -framework IOKit -framework AppKit -framework SwiftUI -framework ServiceManagement \
   -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-  Sources/*.swift -o "$APP/Contents/MacOS/DisplayDeck"
+  Sources/*.swift -o "$APP/Contents/MacOS/$NAME"
 
 [[ -f Resources/AppIcon.icns ]] && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 
@@ -77,10 +85,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>DisplayDeck</string>
-  <key>CFBundleDisplayName</key><string>DisplayDeck</string>
-  <key>CFBundleIdentifier</key><string>com.rahulgurung.DisplayDeck</string>
-  <key>CFBundleExecutable</key><string>DisplayDeck</string>
+  <key>CFBundleName</key><string>$DISPLAY_NAME</string>
+  <key>CFBundleDisplayName</key><string>$DISPLAY_NAME</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+  <key>CFBundleExecutable</key><string>$NAME</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
@@ -129,9 +137,9 @@ sign_app "${DEV_IDENTITY:--}"
 echo "Built $APP (signed ${DEV_IDENTITY:-ad-hoc}${SPARKLE_FEED_URL:+, updates from $SPARKLE_FEED_URL})"
 
 if [[ "${1:-}" == "--install" ]]; then
-  pkill -x DisplayDeck 2>/dev/null || true
-  rm -rf /Applications/DisplayDeck.app
+  pkill -x "$NAME" 2>/dev/null || true
+  rm -rf "/Applications/$NAME.app"
   cp -R "$APP" /Applications/
-  open /Applications/DisplayDeck.app
-  echo "Installed to /Applications"
+  open "/Applications/$NAME.app"
+  echo "Installed to /Applications/$NAME.app"
 fi
