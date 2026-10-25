@@ -3,6 +3,17 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.4
+
+### New
+- **Monitors follow your MacBook's brightness.** Turn on *Settings → Displays → Monitors follow the built-in display* and your monitors change with the built-in screen, auto-brightness included. Move a monitor's slider once to keep it brighter or dimmer, and it keeps that balance across the whole range. Off by default.
+- **Brightness and volume keys for every display at once.** Turn on *Settings → Keyboard → Keys adjust all displays at once*, or hold ⌃ Control for one press. The on-screen indicator says *All displays* when more than one changes.
+- **Settings in tabs.** General, Displays, Keyboard and Updates, so Settings fits on smaller screens.
+
+### Fixed
+- **No more freeze when turning off Accessibility.** Revoking DisplayDeck's Accessibility access in System Settings could freeze the keyboard and mouse. DisplayDeck now lets go of the keys right away, and picks them up again if you grant access later.
+- **No more cut-off text in Settings.** Long descriptions wrap instead of ending in "…".
+
 ## 1.3
 
 ### New

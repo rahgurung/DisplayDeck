@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "launchAtLogin": "\(SMAppService.mainApp.status == .enabled)",
             "brightnessKeys": "\(keys.brightnessEnabled)",
             "volumeKeys": "\(keys.volumeEnabled)",
+            "keysControlAllDisplays": "\(keys.controlsAllDisplays)",
             "followBuiltinBrightness": "\(DisplayManager.followsBuiltin)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.

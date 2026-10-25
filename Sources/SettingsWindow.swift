@@ -12,13 +12,16 @@ final class SettingsWindow {
 
     func show(manager: DisplayManager, keys: MediaKeys) {
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(manager: manager, keys: keys)))
+            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys))
+            let window = NSWindow(contentViewController: controller)
             window.title = "DisplayDeck"
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.isMovableByWindowBackground = true
             window.isReleasedWhenClosed = false
+            // The window was sized before the style change above; size it to the content again so nothing is cut off.
+            window.setContentSize(controller.view.fittingSize)
             window.center()
             self.window = window
         }
@@ -41,6 +44,7 @@ private struct SettingsView: View {
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
     @AppStorage("volumeKeys") private var volumeKeys = false
+    @AppStorage("keysControlAllDisplays") private var keysControlAllDisplays = false
     @AppStorage("showWindowAtLaunch") private var showAtLaunch = true
     @AppStorage("shareAnalytics") private var shareAnalytics = true
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
@@ -101,6 +105,8 @@ private struct SettingsView: View {
         .padding(.top, 24)
         .padding(.bottom, 20)
         .frame(width: 460)
+        // Ask for the full height, so the window grows to fit each tab rather than squeezing it.
+        .fixedSize(horizontal: false, vertical: true)
         .onReceive(poll) { _ in trusted = AXIsProcessTrusted() }
     }
 
@@ -146,7 +152,7 @@ private struct SettingsView: View {
     private var keyboardTab: some View {
         SettingsPage {
             SwitchRow(title: "Brightness keys control monitors",
-                      detail: "Adjusts the monitor under your pointer.", isOn: $brightnessKeys)
+                      detail: brightnessKeysDetail, isOn: $brightnessKeys)
                 .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
             Divider()
             SwitchRow(title: "Volume keys control monitor speakers",
@@ -154,9 +160,29 @@ private struct SettingsView: View {
                 .onChange(of: volumeKeys) { _, on in if on { keys.start() } }
             if brightnessKeys || volumeKeys {
                 Divider()
+                SwitchRow(title: "Keys adjust all displays at once",
+                          detail: allDisplaysDetail, isOn: $keysControlAllDisplays)
+                Divider()
                 AccessibilityRow(trusted: trusted)
             }
         }
+    }
+
+    /// With following on, a brightness key that changes the built-in display reaches every monitor anyway, so the
+    /// all-displays switch only matters over a monitor (and for the volume keys).
+    private var brightnessKeysDetail: String {
+        switch (followBuiltin, keysControlAllDisplays) {
+        case (true, true): "Change the built-in display, and monitors follow it."
+        case (true, false): "Over a monitor, adjusts just that one. Elsewhere, monitors follow the built-in display."
+        case (false, true): "Adjusts every monitor."
+        case (false, false): "Adjusts the monitor under your pointer."
+        }
+    }
+
+    private var allDisplaysDetail: String {
+        followBuiltin
+            ? "Otherwise the display under your pointer; monitors follow the built-in display either way. Hold ⌃ Control to do the other for one press."
+            : "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press."
     }
 
     private var updatesTab: some View {
@@ -203,6 +229,8 @@ private struct SwitchRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // Wrap instead of truncating when the window is shorter than the tab needs.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .toggleStyle(.switch)
@@ -220,6 +248,7 @@ private struct AccessibilityRow: View {
             Text(trusted ? "Accessibility access granted" : "Needs Accessibility access to use the keys")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer()
             if !trusted {
                 Button("Open Settings…") {
