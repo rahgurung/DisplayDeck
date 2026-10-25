@@ -5,7 +5,10 @@ import ApplicationServices
 final class MediaKeys {
     private let manager: DisplayManager
     private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
     private var retryTimer: Timer?
+    private var trustTimer: Timer?
+    private var trustObserver: NSObjectProtocol?
 
     private static let step = 1.0 / 16.0
     private static let keyVolumeUp = 0, keyVolumeDown = 1, keyBrightnessUp = 2, keyBrightnessDown = 3, keyMute = 7
@@ -25,10 +28,7 @@ final class MediaKeys {
         guard tap == nil else { return }
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         guard AXIsProcessTrustedWithOptions(options) else {
-            retryTimer?.invalidate()
-            retryTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] timer in
-                if AXIsProcessTrusted() { timer.invalidate(); self?.start() }
-            }
+            waitForTrust()
             return
         }
         let mask = CGEventMask(1 << 14)  // NX_SYSDEFINED
@@ -38,13 +38,61 @@ final class MediaKeys {
             return keys.handle(type: type, event: event)
         }, userInfo: Unmanaged.passUnretained(self).toOpaque())
         guard let tap else { return }
-        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        watchTrust()
+    }
+
+    /// Removes the tap. An active tap left in place after Accessibility is revoked stops receiving events, and the
+    /// system waits on it for every key press until it times out, which freezes input across the Mac.
+    private func stop() {
+        trustTimer?.invalidate()
+        trustTimer = nil
+        if let trustObserver { DistributedNotificationCenter.default().removeObserver(trustObserver) }
+        trustObserver = nil
+        guard let tap else { return }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        CFMachPortInvalidate(tap)
+        self.tap = nil
+        source = nil
+    }
+
+    /// Starts the tap once Accessibility is granted.
+    private func waitForTrust() {
+        retryTimer?.invalidate()
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] timer in
+            if AXIsProcessTrusted() { timer.invalidate(); self?.start() }
+        }
+    }
+
+    /// Removes the tap as soon as Accessibility is revoked, then waits for it to be granted again.
+    private func watchTrust() {
+        let check = { [weak self] in
+            guard let self, tap != nil, !AXIsProcessTrusted() else { return }
+            stop()
+            waitForTrust()
+        }
+        // Posted when the list of trusted apps changes, slightly before the change takes effect, so check again shortly
+        // after. The timer covers any change that doesn't post it.
+        trustObserver = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name("com.apple.accessibility.api"),
+                                                                            object: nil, queue: .main) { _ in
+            check()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: check)
+        }
+        trustTimer?.invalidate()
+        trustTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in check() }
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            // Turning the tap back on after Accessibility was revoked would stall input again; remove it instead.
+            if AXIsProcessTrusted() {
+                if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            } else {
+                DispatchQueue.main.async { [self] in stop(); waitForTrust() }
+            }
             return Unmanaged.passUnretained(event)
         }
         guard type.rawValue == 14, let ns = NSEvent(cgEvent: event), ns.subtype.rawValue == 8 else {

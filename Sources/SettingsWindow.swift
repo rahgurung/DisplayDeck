@@ -152,8 +152,7 @@ private struct SettingsView: View {
     private var keyboardTab: some View {
         SettingsPage {
             SwitchRow(title: "Brightness keys control monitors",
-                      detail: keysControlAllDisplays ? "Adjusts every monitor." : "Adjusts the monitor under your pointer.",
-                      isOn: $brightnessKeys)
+                      detail: brightnessKeysDetail, isOn: $brightnessKeys)
                 .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
             Divider()
             SwitchRow(title: "Volume keys control monitor speakers",
@@ -162,12 +161,28 @@ private struct SettingsView: View {
             if brightnessKeys || volumeKeys {
                 Divider()
                 SwitchRow(title: "Keys adjust all displays at once",
-                          detail: "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press.",
-                          isOn: $keysControlAllDisplays)
+                          detail: allDisplaysDetail, isOn: $keysControlAllDisplays)
                 Divider()
                 AccessibilityRow(trusted: trusted)
             }
         }
+    }
+
+    /// With following on, a brightness key that changes the built-in display reaches every monitor anyway, so the
+    /// all-displays switch only matters over a monitor (and for the volume keys).
+    private var brightnessKeysDetail: String {
+        switch (followBuiltin, keysControlAllDisplays) {
+        case (true, true): "Change the built-in display, and monitors follow it."
+        case (true, false): "Over a monitor, adjusts just that one. Elsewhere, monitors follow the built-in display."
+        case (false, true): "Adjusts every monitor."
+        case (false, false): "Adjusts the monitor under your pointer."
+        }
+    }
+
+    private var allDisplaysDetail: String {
+        followBuiltin
+            ? "Otherwise the display under your pointer; monitors follow the built-in display either way. Hold ⌃ Control to do the other for one press."
+            : "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press."
     }
 
     private var updatesTab: some View {
