@@ -33,6 +33,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 |---|---|
 | ☀️ **Real brightness** | Changes the monitor's own backlight over DDC/CI rather than drawing a dark overlay, so blacks stay black. |
 | ⌨️ **Brightness keys that work** | Your Mac's brightness keys control the display under your pointer, with a clean on-screen indicator. |
+| 🔌 **Input switching** | Switch a monitor between HDMI, DisplayPort and USB-C from its card, using the inputs the monitor reports. Rename any input, e.g. "Work laptop". |
 | 🔊 **Monitor speakers** | Volume for speakers built into your monitor, from a slider or your volume keys. |
 | ◐ **Contrast** | Adjust contrast on monitors that support it. |
 | 🖥️ **Resolution & refresh rate** | Switch per display in two clicks, no System Settings detour. |
@@ -95,7 +96,7 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 
 - App and macOS version, region
 - How many displays are connected and how each is controlled (DDC / software / Apple)
-- Which options are on, and when the menu or settings window is opened
+- Which options are on, and when the menu or settings window is opened or a monitor's input is switched
 
 Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → Updates**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
 

@@ -39,7 +39,10 @@ struct MenuView: View {
         }
         .padding(10)
         .frame(width: 340)
-        .onAppear { Telemetry.send("Menu.opened") }
+        .onAppear {
+            manager.displays.forEach { $0.refreshInput() }
+            Telemetry.send("Menu.opened")
+        }
     }
 }
 
@@ -92,10 +95,93 @@ struct DisplayCard: View {
                         display.setVolume($0)
                     }
                 }
+                if !display.inputs.isEmpty {
+                    InputRow(display: display)
+                }
             }
         }
         .padding(12)
         .background(CardBackground())
+    }
+}
+
+/// Input source picker, laid out like a slider row so it lines up with the controls above it. Input codes vary by
+/// manufacturer and model, so the inputs can be renamed in place.
+private struct InputRow: View {
+    let display: Display
+
+    @State private var renaming = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: "rectangle.connected.to.line.below")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                Text("Input")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if renaming {
+                    Button("Reset") { display.resetInputNames() }
+                        .controlSize(.small)
+                        .disabled(display.inputNames.isEmpty)
+                        .help("Use the default name for every input")
+                    Button("Done") { renaming = false }
+                        .controlSize(.small)
+                } else {
+                    Menu {
+                        Picker("Input", selection: Binding(
+                            get: { display.currentInput },
+                            set: { if let input = $0 { display.setInput(input) } }
+                        )) {
+                            ForEach(display.inputs) { input in
+                                Label(display.label(for: input), systemImage: input.symbol).tag(Optional(input))
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        Divider()
+                        Button("Rename Inputs…") { renaming = true }
+                    } label: {
+                        PillLabel(text: display.currentInput.map(display.label(for:)) ?? "Choose input")
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("Switch the monitor's input")
+                }
+            }
+
+            if renaming {
+                // Each field keeps its connector's name beside it, since the placeholder disappears once filled in.
+                VStack(spacing: 4) {
+                    ForEach(display.inputs) { input in
+                        HStack(spacing: 6) {
+                            Image(systemName: input.symbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16)
+                            Text(display.defaultName(for: input))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .frame(width: 84, alignment: .leading)
+                            TextField("Name", text: Binding(
+                                get: { display.inputNames[input.value] ?? "" },
+                                set: { display.renameInput(input, to: $0) }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .accessibilityLabel("Name for \(display.defaultName(for: input))")
+                            .onSubmit { renaming = false }
+                        }
+                    }
+                }
+                .padding(.leading, 32)
+            }
+        }
     }
 }
 

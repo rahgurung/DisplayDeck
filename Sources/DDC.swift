@@ -14,13 +14,17 @@ enum VCP: UInt8 {
     case contrast = 0x12
     case volume = 0x62
     case mute = 0x8D
+    case inputSource = 0x60
 }
 
-/// One DDC/CI connection to an external monitor. All I/O runs on a private serial queue;
-/// rapid slider updates are coalesced so only the latest value per control is sent.
+/// One DDC/CI connection to an external monitor. All I/O runs on one serial queue shared by every channel:
+/// each reload discovers new channels while the old ones may still be mid-read (a capabilities read takes
+/// seconds), and two transactions on the same bus at once garble each other's replies.
+/// Rapid slider updates are coalesced so only the latest value per control is sent.
 final class DDCChannel {
     private let service: CFTypeRef
-    private let queue = DispatchQueue(label: "DisplayDeck.ddc")
+    private var queue: DispatchQueue { Self.queue }
+    private static let queue = DispatchQueue(label: "DisplayDeck.ddc")
     private let lock = NSLock()
     private var pending: [UInt8: UInt16] = [:]
 
@@ -50,6 +54,11 @@ final class DDCChannel {
         queue.async { [self] in completion(readSync(code)) }
     }
 
+    /// Reads the monitor's MCCS capabilities string, e.g. `(prot(monitor)…vcp(02 10 12 60(0F 11 12))…)`.
+    func readCapabilities(completion: @escaping (String?) -> Void) {
+        queue.async { [self] in completion(readCapabilitiesSync()) }
+    }
+
     private func send(_ body: [UInt8]) -> Bool {
         var packet = [UInt8(0x80 | body.count)] + body
         packet.append(packet.reduce(UInt8(0x6E) ^ UInt8(Self.dataAddress), ^))
@@ -76,11 +85,37 @@ final class DDCChannel {
             if reply[2] == 0x02, reply[3] == 0x00, reply[4] == code.rawValue, reply[10] == checksum {
                 let max = UInt16(reply[6]) << 8 | UInt16(reply[7])
                 let current = UInt16(reply[8]) << 8 | UInt16(reply[9])
-                if max > 0 { return (current, max) }
+                // Input source has no meaningful maximum; many monitors report 0.
+                if max > 0 || code == .inputSource { return (current, max) }
             }
             usleep(20_000)
         }
         return nil
+    }
+
+    /// The capabilities string arrives in fragments of up to 32 bytes; ask for each offset until an empty one.
+    /// Returns nil unless the monitor reached that empty fragment, so a partial string is never mistaken for the whole.
+    private func readCapabilitiesSync() -> String? {
+        var data: [UInt8] = []
+        var failures = 0
+        var complete = false
+        while data.count < 1024, failures < 3 {
+            let offset = UInt16(data.count)
+            guard send([0xF3, UInt8(offset >> 8), UInt8(offset & 0xFF)]) else { failures += 1; continue }
+            usleep(50_000)
+            var reply = [UInt8](repeating: 0, count: 38)
+            guard IOAVServiceReadI2C(service, Self.chipAddress, 0, &reply, UInt32(reply.count)) == KERN_SUCCESS else { failures += 1; continue }
+            let length = Int(reply[1] & 0x7F)
+            guard length >= 3, length <= 35, reply[2] == 0xE3,
+                  UInt16(reply[3]) << 8 | UInt16(reply[4]) == offset,
+                  reply[length + 2] == reply[0..<(length + 2)].reduce(UInt8(0x50), ^)
+            else { failures += 1; usleep(20_000); continue }
+            if length == 3 { complete = true; break }  // No data left.
+            data += reply[5..<(length + 2)]
+            failures = 0
+        }
+        let text = String(decoding: data.filter { $0 != 0 }, as: UTF8.self)
+        return complete && !text.isEmpty ? text : nil
     }
 
     /// Walks the IOService plane pairing each external DCPAVServiceProxy with the
