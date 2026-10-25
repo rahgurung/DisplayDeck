@@ -191,7 +191,11 @@ final class Display: Identifiable {
     func setBrightness(_ value: Double) {
         applyBrightness(value)
         if let followedLevel { saveSyncOffset(brightness - followedLevel) }
+        // Monitors following this one catch up right away rather than at the next check.
+        if isBuiltin { NotificationCenter.default.post(name: Self.builtinBrightnessChanged, object: self) }
     }
+
+    static let builtinBrightnessChanged = Notification.Name("DisplayDeck.builtinBrightnessChanged")
 
     private func applyBrightness(_ value: Double) {
         brightness = min(1, max(0, value))
@@ -402,6 +406,7 @@ final class DisplayManager {
 
     static var followsBuiltin: Bool { UserDefaults.standard.bool(forKey: "followBuiltinBrightness") }
     private var syncTimer: Timer?
+    private var builtinObserver: NSObjectProtocol?
 
     /// Starts or stops following the built-in display's brightness, per the setting. Polls rather than waiting for a
     /// notification, since macOS doesn't publish one for brightness changes; reading it is cheap.
@@ -410,6 +415,8 @@ final class DisplayManager {
     func updateBrightnessSync(learnOffsets: Bool) {
         syncTimer?.invalidate()
         syncTimer = nil
+        builtinObserver.map(NotificationCenter.default.removeObserver)
+        builtinObserver = nil
         guard Self.followsBuiltin else {
             displays.forEach { $0.stopFollowing() }
             return
@@ -417,7 +424,12 @@ final class DisplayManager {
         if learnOffsets, let level = builtinLevel() {
             displays.filter(\.canFollowBuiltin).forEach { $0.startFollowing(level) }
         }
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.followBuiltin() }
+        // Common modes, so monitors keep following while a slider is being dragged (event tracking mode).
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in self?.followBuiltin() }
+        RunLoop.main.add(timer, forMode: .common)
+        syncTimer = timer
+        builtinObserver = NotificationCenter.default.addObserver(forName: Display.builtinBrightnessChanged, object: nil,
+                                                                 queue: .main) { [weak self] _ in self?.followBuiltin() }
     }
 
     private func builtinLevel() -> Double? {
