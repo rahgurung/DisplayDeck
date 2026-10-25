@@ -39,7 +39,10 @@ struct MenuView: View {
         }
         .padding(10)
         .frame(width: 340)
-        .onAppear { Telemetry.send("Menu.opened") }
+        .onAppear {
+            manager.displays.forEach { $0.refreshInput() }
+            Telemetry.send("Menu.opened")
+        }
     }
 }
 
@@ -152,15 +155,27 @@ private struct InputRow: View {
             }
 
             if renaming {
+                // Each field keeps its connector's name beside it, since the placeholder disappears once filled in.
                 VStack(spacing: 4) {
                     ForEach(display.inputs) { input in
-                        TextField(display.defaultName(for: input), text: Binding(
-                            get: { display.inputNames[input.value] ?? "" },
-                            set: { display.renameInput(input, to: $0) }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .onSubmit { renaming = false }
+                        HStack(spacing: 6) {
+                            Image(systemName: input.symbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16)
+                            Text(display.defaultName(for: input))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .frame(width: 84, alignment: .leading)
+                            TextField("Name", text: Binding(
+                                get: { display.inputNames[input.value] ?? "" },
+                                set: { display.renameInput(input, to: $0) }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .onSubmit { renaming = false }
+                        }
                     }
                 }
                 .padding(.leading, 32)

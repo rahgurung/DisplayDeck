@@ -184,25 +184,34 @@ final class Display: Identifiable {
 
     /// Switching to an input connected to another device usually makes this display disappear from the Mac;
     /// the reconfiguration callback in DisplayManager then reloads the list. If the input has no signal, the monitor
-    /// gives up after a few seconds and goes back to one that does, so read the input back until it settles.
+    /// hunts for one that does, which can take a while, so keep reading the input back until it settles.
     func setInput(_ input: InputSource) {
         currentInput = input
         ddc?.set(.inputSource, UInt16(input.value))
         Telemetry.send("Input.switched")
         inputSwitch += 1
         let attempt = inputSwitch
-        for delay in [3.0, 6.0, 10.0] {
+        for delay in [3.0, 6.0, 10.0, 15.0, 20.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.inputSwitch == attempt else { return }  // A newer switch is being checked.
-                self.ddc?.read(.inputSource) { [weak self] result in
-                    DispatchQueue.main.async {
-                        guard let self, self.inputSwitch == attempt,
-                              let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 else { return }
-                        let current = InputSource(value: value, vendor: self.vendor)
-                        self.currentInput = current
-                        if !self.inputs.contains(current) { self.inputs.append(current) }
-                    }
-                }
+                self.refreshInput(attempt: attempt)
+            }
+        }
+    }
+
+    /// Reads the input the monitor is showing now. Called whenever the menu opens, since the input can also change
+    /// from the monitor's own buttons or when it switches to a device that turns on.
+    func refreshInput() { refreshInput(attempt: inputSwitch) }
+
+    private func refreshInput(attempt: Int) {
+        guard source == .ddc, !probing, !inputs.isEmpty else { return }
+        ddc?.read(.inputSource) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, self.inputSwitch == attempt,
+                      let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 else { return }
+                let current = InputSource(value: value, vendor: self.vendor)
+                self.currentInput = current
+                if !self.inputs.contains(current) { self.inputs.append(current) }
             }
         }
     }
