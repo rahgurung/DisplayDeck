@@ -136,7 +136,7 @@ private struct SettingsView: View {
             SwitchRow(title: "Monitors follow the built-in display",
                       detail: "Including auto-brightness. Move a monitor’s slider to keep it brighter or dimmer.",
                       isOn: $followBuiltin)
-                .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnOffsets: true) }
+                .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnCurves: true) }
             Divider()
             SwitchRow(title: "Show refresh rate as a separate menu",
                       detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)

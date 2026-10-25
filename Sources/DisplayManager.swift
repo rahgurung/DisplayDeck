@@ -3,6 +3,24 @@ import Observation
 
 enum BrightnessSource { case apple, ddc, gamma }
 
+/// How a monitor's brightness follows the built-in display's: a line from 0 to 0 and from 100% to 100% that bends
+/// through one point, where the user last set the monitor. Unlike a fixed offset it always spans the monitor's full
+/// range, so a monitor set dimmer still reaches 100% when the built-in display does.
+struct FollowCurve: Equatable {
+    let builtin: Double
+    let monitor: Double
+
+    static let identity = FollowCurve(builtin: 0.5, monitor: 0.5)
+
+    var isIdentity: Bool { abs(builtin - monitor) < 0.005 }
+
+    func monitorLevel(for level: Double) -> Double {
+        let x = min(1, max(0, level)), b = min(1, max(0, builtin)), m = min(1, max(0, monitor))
+        let y = x <= b ? (b == 0 ? m : m * x / b) : (b == 1 ? m : m + (1 - m) * (x - b) / (1 - b))
+        return min(1, max(0, y))  // Rounding can land a hair past 1.
+    }
+}
+
 @Observable
 final class Display: Identifiable {
     let id: CGDirectDisplayID
@@ -186,11 +204,11 @@ final class Display: Identifiable {
         currentMode = DisplayModes.current(for: id)
     }
 
-    /// A change the user made, from the slider or the brightness keys. While following the built-in display it also sets
-    /// how much brighter or dimmer this monitor stays than the built-in one.
+    /// A change the user made, from the slider or the brightness keys. While following the built-in display it also
+    /// becomes the point this monitor's curve passes through.
     func setBrightness(_ value: Double) {
         applyBrightness(value)
-        if let followedLevel { saveSyncOffset(brightness - followedLevel) }
+        if let followedLevel { saveCurve(FollowCurve(builtin: followedLevel, monitor: brightness)) }
         // Monitors following this one catch up right away rather than at the next check.
         if isBuiltin { NotificationCenter.default.post(name: Self.builtinBrightnessChanged, object: self) }
     }
@@ -214,30 +232,31 @@ final class Display: Identifiable {
     /// The built-in display's brightness this monitor last followed, or nil while not following.
     @ObservationIgnored private(set) var followedLevel: Double?
 
-    /// Matches the built-in display's brightness, plus this monitor's offset. Only sends a command when the value changes,
-    /// since the built-in level is checked twice a second.
+    /// Matches the built-in display's brightness through this monitor's curve (the same percentage until the user adjusts
+    /// it). Only sends a command when the value changes, since the built-in level is checked twice a second.
     func follow(_ level: Double) {
         followedLevel = level
-        let target = min(1, max(0, level + (Self.savedSyncOffsets[monitorKey] ?? 0)))
+        let target = (Self.savedCurves[monitorKey] ?? .identity).monitorLevel(for: level)
         if abs(target - brightness) >= 0.005 { applyBrightness(target) }
     }
 
-    /// Starts following without changing anything: the monitor keeps its current difference from the built-in display.
+    /// Starts following without changing anything: the current levels become the point the curve passes through.
     func startFollowing(_ level: Double) {
         followedLevel = level
-        saveSyncOffset(brightness - level)
+        saveCurve(FollowCurve(builtin: level, monitor: brightness))
     }
 
     func stopFollowing() { followedLevel = nil }
 
-    private func saveSyncOffset(_ offset: Double) {
-        var offsets = Self.savedSyncOffsets
-        offsets[monitorKey] = abs(offset) < 0.005 ? nil : offset
-        UserDefaults.standard.set(offsets, forKey: "brightnessOffsets")
+    private func saveCurve(_ curve: FollowCurve) {
+        var curves = Self.savedCurves
+        curves[monitorKey] = curve.isIdentity ? nil : curve
+        UserDefaults.standard.set(curves.mapValues { [$0.builtin, $0.monitor] }, forKey: "brightnessCurves")
     }
 
-    private static var savedSyncOffsets: [String: Double] {
-        UserDefaults.standard.dictionary(forKey: "brightnessOffsets") as? [String: Double] ?? [:]
+    private static var savedCurves: [String: FollowCurve] {
+        let saved = UserDefaults.standard.dictionary(forKey: "brightnessCurves") as? [String: [Double]] ?? [:]
+        return saved.compactMapValues { $0.count == 2 ? FollowCurve(builtin: $0[0], monitor: $0[1]) : nil }
     }
 
     func setVolume(_ value: Double) {
@@ -348,7 +367,7 @@ final class DisplayManager {
 
     init() {
         reload()
-        updateBrightnessSync(learnOffsets: false)
+        updateBrightnessSync(learnCurves: false)
         CGDisplayRegisterReconfigurationCallback({ _, flags, context in
             guard let context, !flags.contains(.beginConfigurationFlag) else { return }
             let manager = Unmanaged<DisplayManager>.fromOpaque(context).takeUnretainedValue()
@@ -410,9 +429,9 @@ final class DisplayManager {
 
     /// Starts or stops following the built-in display's brightness, per the setting. Polls rather than waiting for a
     /// notification, since macOS doesn't publish one for brightness changes; reading it is cheap.
-    /// - Parameter learnOffsets: when the user switches it on, each monitor keeps its current difference from the
-    ///   built-in display instead of jumping to it (or to an offset saved earlier).
-    func updateBrightnessSync(learnOffsets: Bool) {
+    /// - Parameter learnCurves: when the user switches it on, each monitor's current level becomes its curve's point, so it
+    ///   doesn't jump to the built-in display's level (or to a curve saved earlier).
+    func updateBrightnessSync(learnCurves: Bool) {
         syncTimer?.invalidate()
         syncTimer = nil
         builtinObserver.map(NotificationCenter.default.removeObserver)
@@ -421,7 +440,7 @@ final class DisplayManager {
             displays.forEach { $0.stopFollowing() }
             return
         }
-        if learnOffsets, let level = builtinLevel() {
+        if learnCurves, let level = builtinLevel() {
             displays.filter(\.canFollowBuiltin).forEach { $0.startFollowing(level) }
         }
         // Common modes, so monitors keep following while a slider is being dragged (event tracking mode).
