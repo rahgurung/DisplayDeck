@@ -3,6 +3,12 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.3
+
+### New
+- **Input switching.** Each external monitor's card has an **Input** row for switching between DisplayPort, HDMI and USB-C, no monitor buttons needed. DisplayDeck lists the inputs your monitor reports and names them using each manufacturer's codes. If you pick an input with nothing connected, the row follows the monitor back to the input it lands on.
+- **Name your inputs.** Choose *Rename Inputs…* in the input menu to call them "Work laptop", "PS5" or anything else. Names are kept per monitor; *Reset* brings back the defaults.
+
 ## 1.2.1
 
 - **Simpler menu.** The Check for Updates button is gone from the menu footer; it's in *Settings → Updates*, and automatic checks are unchanged.
