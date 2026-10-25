@@ -4,19 +4,26 @@ import Observation
 enum BrightnessSource { case apple, ddc, gamma }
 
 /// How a monitor's brightness follows the built-in display's: a line from 0 to 0 and from 100% to 100% that bends
-/// through one point, where the user last set the monitor. Unlike a fixed offset it always spans the monitor's full
-/// range, so a monitor set dimmer still reaches 100% when the built-in display does.
+/// through one point, where the user last set the monitor. Unlike a fixed offset it spans the monitor's full range, so a
+/// monitor set dimmer still reaches 100% when the built-in display does. A point set with the built-in display within 5%
+/// of an end isn't pulled to that end: the user chose that level there, and the line would be nearly vertical.
 struct FollowCurve: Equatable {
     let builtin: Double
     let monitor: Double
 
     static let identity = FollowCurve(builtin: 0.5, monitor: 0.5)
+    private static let endMargin = 0.05
 
     var isIdentity: Bool { abs(builtin - monitor) < 0.005 }
 
     func monitorLevel(for level: Double) -> Double {
         let x = min(1, max(0, level)), b = min(1, max(0, builtin)), m = min(1, max(0, monitor))
-        let y = x <= b ? (b == 0 ? m : m * x / b) : (b == 1 ? m : m + (1 - m) * (x - b) / (1 - b))
+        let y: Double
+        if x <= b {
+            y = b < Self.endMargin ? m : m * x / b
+        } else {
+            y = b > 1 - Self.endMargin ? m : m + (1 - m) * (x - b) / (1 - b)
+        }
         return min(1, max(0, y))  // Rounding can land a hair past 1.
     }
 }
@@ -83,6 +90,9 @@ final class Display: Identifiable {
                     self.source = .gamma  // Monitor didn't answer; fall back to software dimming.
                 }
                 self.probing = false
+                // If following the built-in display, start now rather than at the next check, so a key press right
+                // after connecting isn't undone by it.
+                NotificationCenter.default.post(name: Self.followNow, object: self)
             }
         }
         for code in [VCP.volume, .contrast] {
@@ -210,10 +220,12 @@ final class Display: Identifiable {
         applyBrightness(value)
         if let followedLevel { saveCurve(FollowCurve(builtin: followedLevel, monitor: brightness)) }
         // Monitors following this one catch up right away rather than at the next check.
-        if isBuiltin { NotificationCenter.default.post(name: Self.builtinBrightnessChanged, object: self) }
+        if isBuiltin { NotificationCenter.default.post(name: Self.followNow, object: self) }
     }
 
-    static let builtinBrightnessChanged = Notification.Name("DisplayDeck.builtinBrightnessChanged")
+    /// Asks DisplayManager to follow the built-in display now instead of at its next check: posted when the built-in
+    /// slider moves and when a monitor finishes connecting.
+    static let followNow = Notification.Name("DisplayDeck.followNow")
 
     private func applyBrightness(_ value: Double) {
         brightness = min(1, max(0, value))
@@ -235,8 +247,9 @@ final class Display: Identifiable {
     /// Matches the built-in display's brightness through this monitor's curve (the same percentage until the user adjusts
     /// it). Only sends a command when the value changes, since the built-in level is checked twice a second.
     func follow(_ level: Double) {
+        if Self.needsPoint.remove(monitorKey) != nil { return startFollowing(level) }
         followedLevel = level
-        let target = (Self.savedCurves[monitorKey] ?? .identity).monitorLevel(for: level)
+        let target = (Self.curves[monitorKey] ?? .identity).monitorLevel(for: level)
         if abs(target - brightness) >= 0.005 { applyBrightness(target) }
     }
 
@@ -246,18 +259,26 @@ final class Display: Identifiable {
         saveCurve(FollowCurve(builtin: level, monitor: brightness))
     }
 
-    func stopFollowing() { followedLevel = nil }
+    /// For when following is switched on but this monitor's level can't be read yet (still connecting over DDC, or no
+    /// built-in display with the lid closed): it takes its point from the levels at its first follow instead.
+    func learnPointWhenFollowing() { Self.needsPoint.insert(monitorKey) }
+
+    func stopFollowing() {
+        followedLevel = nil
+        Self.needsPoint.remove(monitorKey)
+    }
 
     private func saveCurve(_ curve: FollowCurve) {
-        var curves = Self.savedCurves
-        curves[monitorKey] = curve.isIdentity ? nil : curve
-        UserDefaults.standard.set(curves.mapValues { [$0.builtin, $0.monitor] }, forKey: "brightnessCurves")
+        Self.curves[monitorKey] = curve.isIdentity ? nil : curve
+        UserDefaults.standard.set(Self.curves.mapValues { [$0.builtin, $0.monitor] }, forKey: "brightnessCurves")
     }
 
-    private static var savedCurves: [String: FollowCurve] {
+    // Per monitor and shared across reloads, which rebuild every Display. Loaded once; slider drags update them often.
+    private static var curves: [String: FollowCurve] = {
         let saved = UserDefaults.standard.dictionary(forKey: "brightnessCurves") as? [String: [Double]] ?? [:]
         return saved.compactMapValues { $0.count == 2 ? FollowCurve(builtin: $0[0], monitor: $0[1]) : nil }
-    }
+    }()
+    private static var needsPoint: Set<String> = []
 
     func setVolume(_ value: Double) {
         volume = min(1, max(0, value))
@@ -367,7 +388,6 @@ final class DisplayManager {
 
     init() {
         reload()
-        updateBrightnessSync(learnCurves: false)
         CGDisplayRegisterReconfigurationCallback({ _, flags, context in
             guard let context, !flags.contains(.beginConfigurationFlag) else { return }
             let manager = Unmanaged<DisplayManager>.fromOpaque(context).takeUnretainedValue()
@@ -405,6 +425,8 @@ final class DisplayManager {
         // Built-in first, then externals.
         displays.sort { ($0.isBuiltin ? 0 : 1) < ($1.isBuiltin ? 0 : 1) }
         isMirrored = Mirroring.isMirrored
+        // The new Display objects start following straight away, and the check stops when nothing can follow.
+        updateBrightnessSync(learnCurves: false)
     }
 
     private func bestChannel(for id: CGDirectDisplayID, in channels: [(attributes: [String: Any], channel: DDCChannel)], onlyOne: Bool) -> Int? {
@@ -440,15 +462,22 @@ final class DisplayManager {
             displays.forEach { $0.stopFollowing() }
             return
         }
-        if learnCurves, let level = builtinLevel() {
-            displays.filter(\.canFollowBuiltin).forEach { $0.startFollowing(level) }
+        if learnCurves {
+            let level = builtinLevel()
+            for display in displays where !display.isBuiltin && display.source != .apple {
+                if let level, display.canFollowBuiltin { display.startFollowing(level) } else { display.learnPointWhenFollowing() }
+            }
         }
+        // Nothing to do without a built-in display (e.g. lid closed) or a monitor that can follow it. A reload
+        // re-evaluates this when displays come and go.
+        guard displays.contains(where: \.isBuiltin), displays.contains(where: { !$0.isBuiltin && $0.source != .apple }) else { return }
         // Common modes, so monitors keep following while a slider is being dragged (event tracking mode).
         let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in self?.followBuiltin() }
         RunLoop.main.add(timer, forMode: .common)
         syncTimer = timer
-        builtinObserver = NotificationCenter.default.addObserver(forName: Display.builtinBrightnessChanged, object: nil,
+        builtinObserver = NotificationCenter.default.addObserver(forName: Display.followNow, object: nil,
                                                                  queue: .main) { [weak self] _ in self?.followBuiltin() }
+        followBuiltin()
     }
 
     private func builtinLevel() -> Double? {
