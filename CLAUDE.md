@@ -20,15 +20,22 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 
 ## Build and run
 
-- `./build.sh` builds `build/DisplayDeck.app`, signed with the Apple Development certificate. `./build.sh --install`
-  copies it to /Applications. `./build.sh --release` signs with Developer ID, notarizes and makes the DMG (CI does this).
+- `./build.sh` builds **DisplayDeck Dev** (`build/DisplayDeck-Dev.app`, executable `DisplayDeck-Dev`, bundle ID
+  `com.rahulgurung.DisplayDeck.dev`), signed with the Apple Development certificate. It's a separate app from the
+  release, with its own settings, Accessibility entry and login item, so **testing never touches the user's installed
+  release**: never delete, replace or reset `/Applications/DisplayDeck.app` or the `com.rahulgurung.DisplayDeck`
+  defaults/permissions. `./build.sh --install` copies the dev app to /Applications next to the release.
+  `./build.sh --release` builds `build/DisplayDeck.app` with the release ID, signs with Developer ID, notarizes and
+  makes the DMG (CI does this).
 - The local version comes from `git describe` (e.g. `1.3-2-gabc1234`); without tags it falls back to 1.0. `VERSION=`
   overrides it. `build.sh` runs with `set -euo pipefail`, so any command that can fail in a checkout with no tags (like
   CI's shallow clone) needs `|| true`.
 - Development builds have **no Sparkle feed** (no updates UI, never replace themselves). `SPARKLE_FEED_URL=…` enables
   it for testing.
-- To try a change: `pkill -x DisplayDeck; open build/DisplayDeck.app`. Quit the user's running copy before hardware tests:
-  two copies talking DDC (or both following the built-in display) fight each other.
+- To try a change: `pkill -x DisplayDeck-Dev; open build/DisplayDeck-Dev.app`. The dev build quits a running release
+  on launch and reopens it when it quits (also on `pkill`, which it handles as Quit), because two copies talking DDC (or
+  both following the built-in display) fight each other. Hardware tests write to the dev build's own defaults
+  (`defaults write com.rahulgurung.DisplayDeck.dev …`).
 
 ## Releasing
 
@@ -119,9 +126,9 @@ Instead, render the real SwiftUI views offscreen:
   common-modes timer (default-mode timers stop while a slider is dragged).
 - The maintainer's test setup: MacBook Air + BenQ EX271Q on USB-C (input `0x13`). Restore both screens' brightness
   after any test that changes them.
-- Accessibility permission is tied to the signing identity. Dev builds (Apple Development) and releases (Developer ID,
-  team `GMB586Z55R`) are different apps to macOS, so a Mac with both gets separate entries;
-  `tccutil reset Accessibility com.rahulgurung.DisplayDeck` clears them. Real users keep the permission across updates.
+- Accessibility permission is per app: the dev build shows up as *DisplayDeck Dev* and the release as *DisplayDeck*.
+  To clear the dev build's permission: `tccutil reset Accessibility com.rahulgurung.DisplayDeck.dev`. Real users keep
+  the permission across updates.
 
 ## UI constraints
 

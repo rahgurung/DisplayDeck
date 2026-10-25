@@ -35,8 +35,8 @@ jobs:
 
       - name: Check app bundle
         run: |
-          APP=build/DisplayDeck.app
-          test -x "$APP/Contents/MacOS/DisplayDeck"
+          APP=build/DisplayDeck-Dev.app
+          test -x "$APP/Contents/MacOS/DisplayDeck-Dev"
           test -f "$APP/Contents/Resources/AppIcon.icns"
           plutil -lint "$APP/Contents/Info.plist"
           codesign --verify --strict "$APP"
@@ -51,5 +51,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DisplayDeck-${{ github.sha }}
-          path: build/DisplayDeck.app
+          path: build/DisplayDeck-Dev.app
           retention-days: 7

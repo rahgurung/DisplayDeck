@@ -110,9 +110,13 @@ No Xcode project. You only need the Command Line Tools (`xcode-select --install`
 ```sh
 git clone https://github.com/rahgurung/DisplayDeck.git
 cd DisplayDeck
-./build.sh            # builds build/DisplayDeck.app
+./build.sh            # builds build/DisplayDeck-Dev.app
 ./build.sh --install  # also copies it to /Applications and launches it
 ```
+
+Source builds are **DisplayDeck Dev**, a separate app from the release with its own settings and permissions, so you can
+keep the release installed. While DisplayDeck Dev runs, it quits the release (two copies would both talk to your
+monitors) and opens it again when it quits.
 
 Every push to `main` and every pull request is built by [CI](.github/workflows/ci.yml) on GitHub's macOS runner; the built app is attached to each run for 7 days.
 
