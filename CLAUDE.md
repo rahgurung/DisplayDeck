@@ -49,7 +49,9 @@ changes merged now go live with the next release, so they can describe features 
 
 ## Pull requests
 
-- Branch from the latest `main` (`feature/…`, `fix/…`, `docs/…`). Squash-merge with a clean subject ending in `(#N)`.
+- Branch from the latest `main` (`feature/…`, `fix/…`, `docs/…`).
+- **Always squash-merge**, never a merge commit or rebase: `gh pr merge N --squash --subject "<summary> (#N)" --body "…"`,
+  so each PR is one commit on `main`. Write the subject and body to describe the whole PR, not the branch's last commit.
 - PR descriptions: *What this adds* (with screenshots), *How it works* (a file/change table), *Testing* (✅ verified,
   ⏳ not tried; say honestly what wasn't tested), *Notes*. `Closes #N` for the issue.
 - CI (`ci.yml`) only builds; check it with `gh pr checks N --watch`.
