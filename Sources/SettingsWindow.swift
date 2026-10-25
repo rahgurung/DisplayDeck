@@ -10,9 +10,9 @@ final class SettingsWindow {
 
     private var window: NSWindow?
 
-    func show(keys: MediaKeys) {
+    func show(manager: DisplayManager, keys: MediaKeys) {
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(keys: keys)))
+            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(manager: manager, keys: keys)))
             window.title = "DisplayDeck"
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
@@ -29,6 +29,7 @@ final class SettingsWindow {
 }
 
 private struct SettingsView: View {
+    let manager: DisplayManager
     let keys: MediaKeys
 
     @AppStorage("brightnessKeys") private var brightnessKeys = true
@@ -36,6 +37,7 @@ private struct SettingsView: View {
     @AppStorage("showWindowAtLaunch") private var showAtLaunch = true
     @AppStorage("shareAnalytics") private var shareAnalytics = true
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
+    @AppStorage("followBuiltinBrightness") private var followBuiltin = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
     @State private var autoUpdate = Updater.shared.automaticallyChecksForUpdates
@@ -97,6 +99,11 @@ private struct SettingsView: View {
 
             GroupBox("General") {
                 VStack(alignment: .leading, spacing: 12) {
+                    SwitchRow(title: "Monitors follow the built-in display’s brightness",
+                              detail: "Including auto-brightness. Move a monitor’s slider to keep it brighter or dimmer.",
+                              isOn: $followBuiltin)
+                        .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnOffsets: true) }
+                    Divider()
                     SwitchRow(title: "Launch at login", detail: nil, isOn: $launchAtLogin)
                         .onChange(of: launchAtLogin) { _, on in
                             do {

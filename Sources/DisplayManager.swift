@@ -186,13 +186,54 @@ final class Display: Identifiable {
         currentMode = DisplayModes.current(for: id)
     }
 
+    /// A change the user made, from the slider or the brightness keys. While following the built-in display it also sets
+    /// how much brighter or dimmer this monitor stays than the built-in one.
     func setBrightness(_ value: Double) {
+        applyBrightness(value)
+        if let followedLevel { saveSyncOffset(brightness - followedLevel) }
+    }
+
+    private func applyBrightness(_ value: Double) {
         brightness = min(1, max(0, value))
         switch source {
         case .apple: AppleBrightness.set(id, Float(brightness))
         case .ddc: send(.brightness, brightness)
         case .gamma: GammaDimmer.set(id, brightness)
         }
+    }
+
+    // MARK: Following the built-in display
+
+    /// Built-in displays and Apple displays manage their own brightness; the rest can follow the built-in one.
+    var canFollowBuiltin: Bool { !isBuiltin && source != .apple && !probing }
+
+    /// The built-in display's brightness this monitor last followed, or nil while not following.
+    @ObservationIgnored private(set) var followedLevel: Double?
+
+    /// Matches the built-in display's brightness, plus this monitor's offset. Only sends a command when the value changes,
+    /// since the built-in level is checked twice a second.
+    func follow(_ level: Double) {
+        followedLevel = level
+        let target = min(1, max(0, level + (Self.savedSyncOffsets[monitorKey] ?? 0)))
+        if abs(target - brightness) >= 0.005 { applyBrightness(target) }
+    }
+
+    /// Starts following without changing anything: the monitor keeps its current difference from the built-in display.
+    func startFollowing(_ level: Double) {
+        followedLevel = level
+        saveSyncOffset(brightness - level)
+    }
+
+    func stopFollowing() { followedLevel = nil }
+
+    private func saveSyncOffset(_ offset: Double) {
+        var offsets = Self.savedSyncOffsets
+        offsets[monitorKey] = abs(offset) < 0.005 ? nil : offset
+        UserDefaults.standard.set(offsets, forKey: "brightnessOffsets")
+    }
+
+    private static var savedSyncOffsets: [String: Double] {
+        UserDefaults.standard.dictionary(forKey: "brightnessOffsets") as? [String: Double] ?? [:]
     }
 
     func setVolume(_ value: Double) {
@@ -303,6 +344,7 @@ final class DisplayManager {
 
     init() {
         reload()
+        updateBrightnessSync(learnOffsets: false)
         CGDisplayRegisterReconfigurationCallback({ _, flags, context in
             guard let context, !flags.contains(.beginConfigurationFlag) else { return }
             let manager = Unmanaged<DisplayManager>.fromOpaque(context).takeUnretainedValue()
@@ -354,6 +396,46 @@ final class DisplayManager {
         }
         if let best = scored.max(by: { $0.1 < $1.1 }), best.1 >= 2 { return best.0 }
         return onlyOne && channels.count == 1 ? 0 : nil
+    }
+
+    // MARK: Following the built-in display
+
+    static var followsBuiltin: Bool { UserDefaults.standard.bool(forKey: "followBuiltinBrightness") }
+    private var syncTimer: Timer?
+
+    /// Starts or stops following the built-in display's brightness, per the setting. Polls rather than waiting for a
+    /// notification, since macOS doesn't publish one for brightness changes; reading it is cheap.
+    /// - Parameter learnOffsets: when the user switches it on, each monitor keeps its current difference from the
+    ///   built-in display instead of jumping to it (or to an offset saved earlier).
+    func updateBrightnessSync(learnOffsets: Bool) {
+        syncTimer?.invalidate()
+        syncTimer = nil
+        guard Self.followsBuiltin else {
+            displays.forEach { $0.stopFollowing() }
+            return
+        }
+        if learnOffsets, let level = builtinLevel() {
+            displays.filter(\.canFollowBuiltin).forEach { $0.startFollowing(level) }
+        }
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.followBuiltin() }
+    }
+
+    private func builtinLevel() -> Double? {
+        guard let builtin = displays.first(where: \.isBuiltin), let level = AppleBrightness.get(builtin.id) else { return nil }
+        return Double(level)
+    }
+
+    /// Each monitor tracks the level it last followed, so one that just finished connecting or appeared after a reload
+    /// catches up on the next tick.
+    private func followBuiltin() {
+        guard let level = builtinLevel() else { return }  // No built-in display, e.g. with the lid closed.
+        if let builtin = displays.first(where: \.isBuiltin), abs(builtin.brightness - level) >= 0.005 {
+            builtin.brightness = level  // Keep its slider in step with auto-brightness and the keys.
+        }
+        for display in displays where display.canFollowBuiltin {
+            if let followed = display.followedLevel, abs(followed - level) < 0.005 { continue }
+            display.follow(level)
+        }
     }
 
     func setMirrored(_ on: Bool) {

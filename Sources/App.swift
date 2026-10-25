@@ -7,7 +7,7 @@ struct DisplayDeckApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(manager: delegate.manager) { SettingsWindow.shared.show(keys: delegate.keys) }
+            MenuView(manager: delegate.manager) { SettingsWindow.shared.show(manager: delegate.manager, keys: delegate.keys) }
         } label: {
             Image(nsImage: MenuBarIcon.image)
         }
@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
         _ = Updater.shared  // starts scheduled update checks in release builds
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
-        if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(keys: keys) }
+        if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(manager: manager, keys: keys) }
 
         Telemetry.send("TelemetryDeck.Session.started")
         Telemetry.send("App.launched", payload: [
@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "launchAtLogin": "\(SMAppService.mainApp.status == .enabled)",
             "brightnessKeys": "\(keys.brightnessEnabled)",
             "volumeKeys": "\(keys.volumeEnabled)",
+            "followBuiltinBrightness": "\(DisplayManager.followsBuiltin)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [manager] in
@@ -48,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opening the app again while it's running (Finder, Spotlight, Dock) brings up the settings window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        SettingsWindow.shared.show(keys: keys)
+        SettingsWindow.shared.show(manager: manager, keys: keys)
         return true
     }
 
