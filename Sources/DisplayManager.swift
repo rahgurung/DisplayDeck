@@ -14,6 +14,8 @@ final class Display: Identifiable {
     var brightness: Double = 1
     var contrast: Double?
     var volume: Double?
+    var inputs: [InputSource] = []
+    var currentInput: InputSource?
     var probing: Bool
     var modes: [ModeOption] = []
     var currentMode: ModeOption?
@@ -53,6 +55,7 @@ final class Display: Identifiable {
                 if let result {
                     self.maxValues[.brightness] = result.max
                     self.brightness = Double(result.current) / Double(result.max)
+                    self.probeInputs()
                 } else {
                     self.source = .gamma  // Monitor didn't answer; fall back to software dimming.
                 }
@@ -69,6 +72,38 @@ final class Display: Identifiable {
                 }
             }
         }
+    }
+
+    /// Reads the current input, then the inputs the monitor lists in its capabilities string. Falls back to the
+    /// common connectors when the monitor reports an input but doesn't list them.
+    private func probeInputs() {
+        guard let ddc else { return }
+        ddc.read(.inputSource) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 { self.currentInput = InputSource(value: value) }
+                if let listed = Self.listedInputs[self.id] { self.setInputs(listed) }
+            }
+        }
+        // The capabilities string takes a couple of seconds to read and holds up other DDC commands meanwhile,
+        // so it's read once per display rather than on every reload.
+        guard Self.listedInputs[id] == nil else { return }
+        ddc.readCapabilities { [weak self] capabilities in
+            let listed = capabilities.map(InputSource.parse(capabilities:)) ?? []
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if capabilities != nil { Self.listedInputs[self.id] = listed }
+                self.setInputs(listed)
+            }
+        }
+    }
+
+    private static var listedInputs: [CGDirectDisplayID: [InputSource]] = [:]
+
+    private func setInputs(_ listed: [InputSource]) {
+        var inputs = listed.isEmpty && currentInput != nil ? InputSource.common : listed
+        if let current = currentInput, !inputs.contains(current) { inputs.append(current) }
+        self.inputs = inputs
     }
 
     func reloadModes() {
@@ -93,6 +128,14 @@ final class Display: Identifiable {
     func setContrast(_ value: Double) {
         contrast = min(1, max(0, value))
         send(.contrast, contrast!)
+    }
+
+    /// Switching to an input connected to another device usually makes this display disappear from the Mac;
+    /// the reconfiguration callback in DisplayManager then reloads the list.
+    func setInput(_ input: InputSource) {
+        currentInput = input
+        ddc?.set(.inputSource, UInt16(input.value))
+        Telemetry.send("Input.switched")
     }
 
     private func send(_ code: VCP, _ value: Double) {

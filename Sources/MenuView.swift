@@ -92,10 +92,49 @@ struct DisplayCard: View {
                         display.setVolume($0)
                     }
                 }
+                if !display.inputs.isEmpty {
+                    InputRow(display: display)
+                }
             }
         }
         .padding(12)
         .background(CardBackground())
+    }
+}
+
+/// Input source picker, laid out like a slider row so it lines up with the controls above it.
+private struct InputRow: View {
+    let display: Display
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "rectangle.connected.to.line.below")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            Text("Input")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Menu {
+                Picker("Input", selection: Binding(
+                    get: { display.currentInput },
+                    set: { if let input = $0 { display.setInput(input) } }
+                )) {
+                    ForEach(display.inputs) { input in
+                        Label(input.name, systemImage: input.symbol).tag(Optional(input))
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                PillLabel(text: display.currentInput?.name ?? "Choose input")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Switch the monitor's input")
+        }
     }
 }
 
