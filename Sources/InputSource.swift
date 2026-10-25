@@ -8,21 +8,30 @@ struct InputSource: Identifiable, Hashable {
     let vendor: UInt32
     var id: UInt8 { value }
 
-    private static let benQ: UInt32 = 0x09D1  // "BNQ"
-    private static let dell: UInt32 = 0x10AC  // "DEL"
-
-    /// MCCS defines no code for USB-C; these are the ones manufacturers use for it.
-    private static let usbC: [UInt32: UInt8] = [benQ: 0x13, dell: 0x1B]
-
-    private var isUSBC: Bool { Self.usbC[vendor] == value }
+    /// MCCS only defines codes up to 0x12 and leaves USB-C out entirely, so manufacturers pick their own, and
+    /// sometimes per model. These are codes reported by owners of more than one model, or verified on hardware;
+    /// anything else shows as "Input 0xNN" until the user renames it.
+    private static let vendorNames: [UInt32: [UInt8: String]] = [
+        0x09D1: [0x13: "USB-C"],  // BenQ ("BNQ"), verified on the EX271Q
+        0x10AC: [0x1B: "USB-C"],  // Dell ("DEL")
+        0x1E6D: [0x90: "HDMI 1", 0x91: "HDMI 2", 0xD0: "DisplayPort", 0xD1: "USB-C"],  // LG ("GSM")
+        0x22F0: [0x13: "DisplayPort 2"],  // HP ("HWP")
+    ]
 
     var name: String {
-        if isUSBC { return "USB-C" }
+        if let name = Self.vendorNames[vendor]?[value] { return name }
         switch value {
         case 0x01: return "VGA 1"
         case 0x02: return "VGA 2"
         case 0x03: return "DVI 1"
         case 0x04: return "DVI 2"
+        case 0x05: return "Composite 1"
+        case 0x06: return "Composite 2"
+        case 0x07: return "S-Video 1"
+        case 0x08: return "S-Video 2"
+        case 0x0C: return "Component 1"
+        case 0x0D: return "Component 2"
+        case 0x0E: return "Component 3"
         case 0x0F: return "DisplayPort 1"
         case 0x10: return "DisplayPort 2"
         case 0x11: return "HDMI 1"
@@ -32,18 +41,22 @@ struct InputSource: Identifiable, Hashable {
     }
 
     var symbol: String {
-        if isUSBC { return "cable.connector" }
-        switch value {
-        case 0x0F, 0x10: return "display"
-        case 0x11, 0x12: return "tv"
-        default: return "rectangle.connected.to.line.below"
-        }
+        if name == "USB-C" { return "cable.connector" }
+        if name.hasPrefix("DisplayPort") { return "display" }
+        if name.hasPrefix("HDMI") { return "tv" }
+        return "rectangle.connected.to.line.below"
     }
 
-    /// Offered when the monitor doesn't list its inputs: the connectors most monitors have, plus USB-C
-    /// where the manufacturer's code for it is known.
+    /// Offered when the monitor doesn't list its inputs: the connectors most monitors have, in the manufacturer's
+    /// codes where they differ from MCCS, plus USB-C where its code is known.
     static func common(vendor: UInt32) -> [InputSource] {
-        ([0x0F, 0x10, 0x11, 0x12] + (usbC[vendor].map { [$0] } ?? [])).map { InputSource(value: $0, vendor: vendor) }
+        let values: [UInt8]
+        switch vendor {
+        case 0x1E6D: values = [0xD0, 0xD1, 0x90, 0x91]  // LG
+        case 0x22F0: values = [0x0F, 0x13, 0x11, 0x12]  // HP
+        default: values = [0x0F, 0x10, 0x11, 0x12] + (vendorNames[vendor]?.first { $0.value == "USB-C" }.map { [$0.key] } ?? [])
+        }
+        return values.map { InputSource(value: $0, vendor: vendor) }
     }
 
     /// The inputs listed for VCP 60 in a capabilities string, e.g. `vcp(10 12 60(0F 11 12) 62)` → DP 1, HDMI 1, HDMI 2.

@@ -102,38 +102,65 @@ struct DisplayCard: View {
     }
 }
 
-/// Input source picker, laid out like a slider row so it lines up with the controls above it.
+/// Input source picker, laid out like a slider row so it lines up with the controls above it. Input codes vary by
+/// manufacturer and model, so the inputs can be renamed in place.
 private struct InputRow: View {
     let display: Display
 
+    @State private var renaming = false
+
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "rectangle.connected.to.line.below")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
-            Text("Input")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Menu {
-                Picker("Input", selection: Binding(
-                    get: { display.currentInput },
-                    set: { if let input = $0 { display.setInput(input) } }
-                )) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: "rectangle.connected.to.line.below")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                Text("Input")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if renaming {
+                    Button("Done") { renaming = false }
+                        .controlSize(.small)
+                } else {
+                    Menu {
+                        Picker("Input", selection: Binding(
+                            get: { display.currentInput },
+                            set: { if let input = $0 { display.setInput(input) } }
+                        )) {
+                            ForEach(display.inputs) { input in
+                                Label(display.label(for: input), systemImage: input.symbol).tag(Optional(input))
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        Divider()
+                        Button("Rename Inputs…") { renaming = true }
+                    } label: {
+                        PillLabel(text: display.currentInput.map(display.label(for:)) ?? "Choose input")
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("Switch the monitor's input")
+                }
+            }
+
+            if renaming {
+                VStack(spacing: 4) {
                     ForEach(display.inputs) { input in
-                        Label(input.name, systemImage: input.symbol).tag(Optional(input))
+                        TextField(input.name, text: Binding(
+                            get: { display.inputNames[input.value] ?? "" },
+                            set: { display.renameInput(input, to: $0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .onSubmit { renaming = false }
                     }
                 }
-                .pickerStyle(.inline)
-            } label: {
-                PillLabel(text: display.currentInput?.name ?? "Choose input")
+                .padding(.leading, 32)
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("Switch the monitor's input")
         }
     }
 }

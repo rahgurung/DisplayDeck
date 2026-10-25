@@ -33,7 +33,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 |---|---|
 | ☀️ **Real brightness** | Changes the monitor's own backlight over DDC/CI rather than drawing a dark overlay, so blacks stay black. |
 | ⌨️ **Brightness keys that work** | Your Mac's brightness keys control the display under your pointer, with a clean on-screen indicator. |
-| 🔌 **Input switching** | Switch a monitor between HDMI, DisplayPort and USB-C from its card, using the inputs the monitor reports. |
+| 🔌 **Input switching** | Switch a monitor between HDMI, DisplayPort and USB-C from its card, using the inputs the monitor reports. Rename any input, e.g. "Work laptop". |
 | 🔊 **Monitor speakers** | Volume for speakers built into your monitor, from a slider or your volume keys. |
 | ◐ **Contrast** | Adjust contrast on monitors that support it. |
 | 🖥️ **Resolution & refresh rate** | Switch per display in two clicks, no System Settings detour. |

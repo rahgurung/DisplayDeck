@@ -16,6 +16,8 @@ final class Display: Identifiable {
     var volume: Double?
     var inputs: [InputSource] = []
     var currentInput: InputSource?
+    /// Names the user gave this monitor's inputs, by input value.
+    private(set) var inputNames: [UInt8: String] = [:]
     var probing: Bool
     var modes: [ModeOption] = []
     var currentMode: ModeOption?
@@ -37,6 +39,9 @@ final class Display: Identifiable {
         }
         reloadModes()
         probeDDC()
+        inputNames = (Self.savedInputNames[inputNamesKey] ?? [:]).reduce(into: [:]) { names, entry in
+            if let value = UInt8(entry.key) { names[value] = entry.value }
+        }
     }
 
     var sourceLabel: String {
@@ -100,6 +105,25 @@ final class Display: Identifiable {
     }
 
     private var vendor: UInt32 { CGDisplayVendorNumber(id) }
+
+    func label(for input: InputSource) -> String {
+        inputNames[input.value]?.trimmingCharacters(in: .whitespaces) ?? input.name
+    }
+
+    /// Called on every keystroke, so the name is only trimmed when shown. An empty name goes back to the default.
+    func renameInput(_ input: InputSource, to name: String) {
+        inputNames[input.value] = name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name
+        var saved = Self.savedInputNames
+        saved[inputNamesKey] = inputNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: inputNames.map { (String($0.key), $0.value) })
+        UserDefaults.standard.set(saved, forKey: "inputNames")
+    }
+
+    /// Identifies the monitor across reconnects, and tells two of the same model apart by serial number.
+    private var inputNamesKey: String { "\(vendor)-\(CGDisplayModelNumber(id))-\(CGDisplaySerialNumber(id))" }
+
+    private static var savedInputNames: [String: [String: String]] {
+        UserDefaults.standard.dictionary(forKey: "inputNames") as? [String: [String: String]] ?? [:]
+    }
 
     private static var listedInputs: [CGDirectDisplayID: [InputSource]] = [:]
 
