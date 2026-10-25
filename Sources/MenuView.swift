@@ -150,7 +150,7 @@ private struct InputRow: View {
             if renaming {
                 VStack(spacing: 4) {
                     ForEach(display.inputs) { input in
-                        TextField(input.name, text: Binding(
+                        TextField(display.defaultName(for: input), text: Binding(
                             get: { display.inputNames[input.value] ?? "" },
                             set: { display.renameInput(input, to: $0) }
                         ))

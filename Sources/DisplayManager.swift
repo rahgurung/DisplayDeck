@@ -16,6 +16,8 @@ final class Display: Identifiable {
     var volume: Double?
     var inputs: [InputSource] = []
     var currentInput: InputSource?
+    /// The input the monitor was on when DisplayDeck found it, which is the one this Mac is connected to.
+    private var macInput: InputSource?
     /// Names the user gave this monitor's inputs, by input value.
     private(set) var inputNames: [UInt8: String] = [:]
     var probing: Bool
@@ -86,7 +88,10 @@ final class Display: Identifiable {
         ddc.read(.inputSource) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 { self.currentInput = InputSource(value: value, vendor: self.vendor) }
+                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 {
+                    self.currentInput = InputSource(value: value, vendor: self.vendor)
+                    self.macInput = self.currentInput
+                }
                 if let listed = Self.listedInputs[self.id] { self.setInputs(listed) }
             }
         }
@@ -107,7 +112,17 @@ final class Display: Identifiable {
     private var vendor: UInt32 { CGDisplayVendorNumber(id) }
 
     func label(for input: InputSource) -> String {
-        inputNames[input.value]?.trimmingCharacters(in: .whitespaces) ?? input.name
+        inputNames[input.value]?.trimmingCharacters(in: .whitespaces) ?? defaultName(for: input)
+    }
+
+    /// The connector name where the code is known. Otherwise "This Mac" for the input the Mac is on, and
+    /// "Other input" for the rest, numbered when there's more than one.
+    func defaultName(for input: InputSource) -> String {
+        if let name = input.knownName { return name }
+        if input == macInput { return "This Mac" }
+        let others = inputs.filter { $0.knownName == nil && $0 != macInput }
+        guard others.count > 1, let index = others.firstIndex(of: input) else { return "Other input" }
+        return "Other input \(index + 1)"
     }
 
     /// Called on every keystroke, so the name is only trimmed when shown. An empty name goes back to the default.
@@ -158,12 +173,31 @@ final class Display: Identifiable {
     }
 
     /// Switching to an input connected to another device usually makes this display disappear from the Mac;
-    /// the reconfiguration callback in DisplayManager then reloads the list.
+    /// the reconfiguration callback in DisplayManager then reloads the list. If the input has no signal, the monitor
+    /// gives up after a few seconds and goes back to one that does, so read the input back until it settles.
     func setInput(_ input: InputSource) {
         currentInput = input
         ddc?.set(.inputSource, UInt16(input.value))
         Telemetry.send("Input.switched")
+        inputSwitch += 1
+        let attempt = inputSwitch
+        for delay in [3.0, 6.0, 10.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.inputSwitch == attempt else { return }  // A newer switch is being checked.
+                self.ddc?.read(.inputSource) { [weak self] result in
+                    DispatchQueue.main.async {
+                        guard let self, self.inputSwitch == attempt,
+                              let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 else { return }
+                        let current = InputSource(value: value, vendor: self.vendor)
+                        self.currentInput = current
+                        if !self.inputs.contains(current) { self.inputs.append(current) }
+                    }
+                }
+            }
+        }
     }
+
+    @ObservationIgnored private var inputSwitch = 0
 
     private func send(_ code: VCP, _ value: Double) {
         let max = maxValues[code] ?? 100

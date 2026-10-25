@@ -10,7 +10,7 @@ struct InputSource: Identifiable, Hashable {
 
     /// MCCS only defines codes up to 0x12 and leaves USB-C out entirely, so manufacturers pick their own, and
     /// sometimes per model. These are codes reported by owners of more than one model, or verified on hardware;
-    /// anything else shows as "Input 0xNN" until the user renames it.
+    /// anything else gets a generic name from Display until the user renames it.
     private static let vendorNames: [UInt32: [UInt8: String]] = [
         0x09D1: [0x13: "USB-C"],  // BenQ ("BNQ"), verified on the EX271Q
         0x10AC: [0x1B: "USB-C"],  // Dell ("DEL")
@@ -18,7 +18,8 @@ struct InputSource: Identifiable, Hashable {
         0x22F0: [0x13: "DisplayPort 2"],  // HP ("HWP")
     ]
 
-    var name: String {
+    /// The connector's name, or nil for a code outside MCCS that this manufacturer isn't known to use.
+    var knownName: String? {
         if let name = Self.vendorNames[vendor]?[value] { return name }
         switch value {
         case 0x01: return "VGA 1"
@@ -36,11 +37,12 @@ struct InputSource: Identifiable, Hashable {
         case 0x10: return "DisplayPort 2"
         case 0x11: return "HDMI 1"
         case 0x12: return "HDMI 2"
-        default: return String(format: "Input 0x%02X", value)
+        default: return nil
         }
     }
 
     var symbol: String {
+        let name = knownName ?? ""
         if name == "USB-C" { return "cable.connector" }
         if name.hasPrefix("DisplayPort") { return "display" }
         if name.hasPrefix("HDMI") { return "tv" }
