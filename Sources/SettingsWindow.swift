@@ -30,6 +30,8 @@ final class SettingsWindow {
 
 private enum SettingsTab: String {
     case general, displays, keyboard, updates
+
+    var title: String { rawValue.capitalized }
 }
 
 private struct SettingsView: View {
@@ -67,77 +69,25 @@ private struct SettingsView: View {
                     .padding(.top, 6)
             }
 
-            // Tabs keep the window short enough for a 1440 × 900 screen as settings are added.
-            TabView(selection: $tab) {
-                SettingsPage {
-                    SwitchRow(title: "Launch at login", detail: nil, isOn: $launchAtLogin)
-                        .onChange(of: launchAtLogin) { _, on in
-                            do {
-                                if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                            } catch {
-                                launchAtLogin = SMAppService.mainApp.status == .enabled
-                            }
-                        }
-                    Divider()
-                    SwitchRow(title: "Show this window when DisplayDeck opens",
-                              detail: "Otherwise it starts quietly in the menu bar.", isOn: $showAtLaunch)
-                    if Telemetry.isAvailable {
-                        Divider()
-                        SwitchRow(title: "Share anonymous usage stats",
-                                  detail: "Versions and which features you use. Nothing personal.",
-                                  isOn: $shareAnalytics)
-                    }
-                }
-                .tabItem { Text("General") }
-                .tag(SettingsTab.general)
+            // Tabs keep the window short enough for a 1440 × 900 screen as settings are added. A segmented control
+            // rather than TabView, whose tab bar drew blurry labels in this transparent-titlebar window.
+            Picker("Settings", selection: $tab) {
+                ForEach(tabs, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
 
-                SettingsPage {
-                    SwitchRow(title: "Monitors follow the built-in display",
-                              detail: "Including auto-brightness. Move a monitor’s slider to keep it brighter or dimmer.",
-                              isOn: $followBuiltin)
-                        .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnOffsets: true) }
-                    Divider()
-                    SwitchRow(title: "Show refresh rate as a separate menu",
-                              detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)
-                }
-                .tabItem { Text("Displays") }
-                .tag(SettingsTab.displays)
-
-                SettingsPage {
-                    SwitchRow(title: "Brightness keys control monitors",
-                              detail: "Adjusts the monitor under your pointer.", isOn: $brightnessKeys)
-                        .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
-                    Divider()
-                    SwitchRow(title: "Volume keys control monitor speakers",
-                              detail: "For monitors with built-in speakers.", isOn: $volumeKeys)
-                        .onChange(of: volumeKeys) { _, on in if on { keys.start() } }
-                    if brightnessKeys || volumeKeys {
-                        Divider()
-                        AccessibilityRow(trusted: trusted)
-                    }
-                }
-                .tabItem { Text("Keyboard") }
-                .tag(SettingsTab.keyboard)
-
-                if Updater.shared.isAvailable {
-                    SettingsPage {
-                        SwitchRow(title: "Automatically check for updates",
-                                  detail: "Checks once a day and asks before installing.", isOn: $autoUpdate)
-                            .onChange(of: autoUpdate) { _, on in Updater.shared.automaticallyChecksForUpdates = on }
-                        Divider()
-                        HStack {
-                            Spacer()
-                            Button("Check for Updates…") { Updater.shared.checkForUpdates() }
-                                .controlSize(.small)
-                                .disabled(!Updater.shared.canCheckForUpdates)
-                        }
-                    }
-                    .tabItem { Text("Updates") }
-                    .tag(SettingsTab.updates)
+            GroupBox {
+                switch tab {
+                case .general: generalTab
+                case .displays: displaysTab
+                case .keyboard: keyboardTab
+                case .updates: updatesTab
                 }
             }
             .onAppear {
-                if tab == .updates && !Updater.shared.isAvailable { tab = .general }
+                if !tabs.contains(tab) { tab = .general }
             }
 
             HStack {
@@ -153,9 +103,79 @@ private struct SettingsView: View {
         .frame(width: 460)
         .onReceive(poll) { _ in trusted = AXIsProcessTrusted() }
     }
+
+    /// Updates only exist in release builds, which carry a feed URL.
+    private var tabs: [SettingsTab] {
+        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .updates] : [.general, .displays, .keyboard]
+    }
+
+    private var generalTab: some View {
+        SettingsPage {
+            SwitchRow(title: "Launch at login", detail: nil, isOn: $launchAtLogin)
+                .onChange(of: launchAtLogin) { _, on in
+                    do {
+                        if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                    } catch {
+                        launchAtLogin = SMAppService.mainApp.status == .enabled
+                    }
+                }
+            Divider()
+            SwitchRow(title: "Show this window when DisplayDeck opens",
+                      detail: "Otherwise it starts quietly in the menu bar.", isOn: $showAtLaunch)
+            if Telemetry.isAvailable {
+                Divider()
+                SwitchRow(title: "Share anonymous usage stats",
+                          detail: "Versions and which features you use. Nothing personal.",
+                          isOn: $shareAnalytics)
+            }
+        }
+    }
+
+    private var displaysTab: some View {
+        SettingsPage {
+            SwitchRow(title: "Monitors follow the built-in display",
+                      detail: "Including auto-brightness. Move a monitor’s slider to keep it brighter or dimmer.",
+                      isOn: $followBuiltin)
+                .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnOffsets: true) }
+            Divider()
+            SwitchRow(title: "Show refresh rate as a separate menu",
+                      detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)
+        }
+    }
+
+    private var keyboardTab: some View {
+        SettingsPage {
+            SwitchRow(title: "Brightness keys control monitors",
+                      detail: "Adjusts the monitor under your pointer.", isOn: $brightnessKeys)
+                .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
+            Divider()
+            SwitchRow(title: "Volume keys control monitor speakers",
+                      detail: "For monitors with built-in speakers.", isOn: $volumeKeys)
+                .onChange(of: volumeKeys) { _, on in if on { keys.start() } }
+            if brightnessKeys || volumeKeys {
+                Divider()
+                AccessibilityRow(trusted: trusted)
+            }
+        }
+    }
+
+    private var updatesTab: some View {
+        SettingsPage {
+            SwitchRow(title: "Automatically check for updates",
+                      detail: "Checks once a day and asks before installing.", isOn: $autoUpdate)
+                .onChange(of: autoUpdate) { _, on in Updater.shared.automaticallyChecksForUpdates = on }
+            Divider()
+            HStack {
+                Spacer()
+                Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                    .controlSize(.small)
+                    .disabled(!Updater.shared.canCheckForUpdates)
+            }
+        }
+    }
 }
 
-/// The rows of one settings tab, top-aligned so tabs of different lengths line up.
+/// The rows of one settings tab.
 private struct SettingsPage<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -163,8 +183,8 @@ private struct SettingsPage<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             content
         }
-        .padding(12)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
