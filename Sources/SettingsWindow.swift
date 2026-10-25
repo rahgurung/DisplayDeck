@@ -12,13 +12,16 @@ final class SettingsWindow {
 
     func show(manager: DisplayManager, keys: MediaKeys) {
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(manager: manager, keys: keys)))
+            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys))
+            let window = NSWindow(contentViewController: controller)
             window.title = "DisplayDeck"
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.isMovableByWindowBackground = true
             window.isReleasedWhenClosed = false
+            // The window was sized before the style change above; size it to the content again so nothing is cut off.
+            window.setContentSize(controller.view.fittingSize)
             window.center()
             self.window = window
         }
@@ -102,6 +105,8 @@ private struct SettingsView: View {
         .padding(.top, 24)
         .padding(.bottom, 20)
         .frame(width: 460)
+        // Ask for the full height, so the window grows to fit each tab rather than squeezing it.
+        .fixedSize(horizontal: false, vertical: true)
         .onReceive(poll) { _ in trusted = AXIsProcessTrusted() }
     }
 
@@ -209,6 +214,8 @@ private struct SwitchRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // Wrap instead of truncating when the window is shorter than the tab needs.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .toggleStyle(.switch)
@@ -226,6 +233,7 @@ private struct AccessibilityRow: View {
             Text(trusted ? "Accessibility access granted" : "Needs Accessibility access to use the keys")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer()
             if !trusted {
                 Button("Open Settings…") {
