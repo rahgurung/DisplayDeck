@@ -76,7 +76,9 @@ struct InputSource: Identifiable, Hashable {
             case "(":
                 // Some monitors pack codes without spaces ("106062("), so match 60 as the last two-digit code.
                 if depth == 1, token.count % 2 == 0, token.hasSuffix("60"), let close = text[index...].firstIndex(of: ")") {
-                    return hexBytes(text[index..<close]).map { InputSource(value: $0, vendor: vendor) }
+                    // Some monitors list a value twice; keep the first, since the list is used as SwiftUI IDs.
+                    var seen = Set<UInt8>()
+                    return hexBytes(text[index..<close]).filter { seen.insert($0).inserted }.map { InputSource(value: $0, vendor: vendor) }
                 }
                 depth += 1
                 token = ""

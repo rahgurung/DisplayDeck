@@ -96,7 +96,7 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 
 - App and macOS version, region
 - How many displays are connected and how each is controlled (DDC / software / Apple)
-- Which options are on, and when the menu or settings window is opened
+- Which options are on, and when the menu or settings window is opened or a monitor's input is switched
 
 Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → Updates**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
 

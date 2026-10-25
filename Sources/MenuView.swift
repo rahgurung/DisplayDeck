@@ -174,6 +174,7 @@ private struct InputRow: View {
                             ))
                             .textFieldStyle(.roundedBorder)
                             .controlSize(.small)
+                            .accessibilityLabel("Name for \(display.defaultName(for: input))")
                             .onSubmit { renaming = false }
                         }
                     }

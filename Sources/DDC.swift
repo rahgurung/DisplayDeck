@@ -17,11 +17,14 @@ enum VCP: UInt8 {
     case inputSource = 0x60
 }
 
-/// One DDC/CI connection to an external monitor. All I/O runs on a private serial queue;
-/// rapid slider updates are coalesced so only the latest value per control is sent.
+/// One DDC/CI connection to an external monitor. All I/O runs on one serial queue shared by every channel:
+/// each reload discovers new channels while the old ones may still be mid-read (a capabilities read takes
+/// seconds), and two transactions on the same bus at once garble each other's replies.
+/// Rapid slider updates are coalesced so only the latest value per control is sent.
 final class DDCChannel {
     private let service: CFTypeRef
-    private let queue = DispatchQueue(label: "DisplayDeck.ddc")
+    private var queue: DispatchQueue { Self.queue }
+    private static let queue = DispatchQueue(label: "DisplayDeck.ddc")
     private let lock = NSLock()
     private var pending: [UInt8: UInt16] = [:]
 
@@ -91,9 +94,11 @@ final class DDCChannel {
     }
 
     /// The capabilities string arrives in fragments of up to 32 bytes; ask for each offset until an empty one.
+    /// Returns nil unless the monitor reached that empty fragment, so a partial string is never mistaken for the whole.
     private func readCapabilitiesSync() -> String? {
         var data: [UInt8] = []
         var failures = 0
+        var complete = false
         while data.count < 1024, failures < 3 {
             let offset = UInt16(data.count)
             guard send([0xF3, UInt8(offset >> 8), UInt8(offset & 0xFF)]) else { failures += 1; continue }
@@ -105,12 +110,12 @@ final class DDCChannel {
                   UInt16(reply[3]) << 8 | UInt16(reply[4]) == offset,
                   reply[length + 2] == reply[0..<(length + 2)].reduce(UInt8(0x50), ^)
             else { failures += 1; usleep(20_000); continue }
-            if length == 3 { break }  // No data left.
+            if length == 3 { complete = true; break }  // No data left.
             data += reply[5..<(length + 2)]
             failures = 0
         }
         let text = String(decoding: data.filter { $0 != 0 }, as: UTF8.self)
-        return text.isEmpty ? nil : text
+        return complete && !text.isEmpty ? text : nil
     }
 
     /// Walks the IOService plane pairing each external DCPAVServiceProxy with the

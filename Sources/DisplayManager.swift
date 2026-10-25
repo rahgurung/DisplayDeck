@@ -16,8 +16,6 @@ final class Display: Identifiable {
     var volume: Double?
     var inputs: [InputSource] = []
     var currentInput: InputSource?
-    /// The input the monitor was on when DisplayDeck found it, which is the one this Mac is connected to.
-    private var macInput: InputSource?
     /// Names the user gave this monitor's inputs, by input value.
     private(set) var inputNames: [UInt8: String] = [:]
     var probing: Bool
@@ -41,7 +39,7 @@ final class Display: Identifiable {
         }
         reloadModes()
         probeDDC()
-        inputNames = (Self.savedInputNames[inputNamesKey] ?? [:]).reduce(into: [:]) { names, entry in
+        inputNames = (Self.savedInputNames[monitorKey] ?? [:]).reduce(into: [:]) { names, entry in
             if let value = UInt8(entry.key) { names[value] = entry.value }
         }
     }
@@ -85,31 +83,52 @@ final class Display: Identifiable {
     /// common connectors when the monitor reports an input but doesn't list them.
     private func probeInputs() {
         guard let ddc else { return }
+        let key = monitorKey
         ddc.read(.inputSource) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 {
-                    self.currentInput = InputSource(value: value, vendor: self.vendor)
-                    self.macInput = self.currentInput
+                if let input = self.input(from: result) {
+                    self.currentInput = input
+                    // Only the first reading counts: a later reload may happen while the monitor shows another device.
+                    if Self.macInputs[key] == nil { Self.macInputs[key] = input }
                 }
-                if let listed = Self.listedInputs[self.id] { self.setInputs(listed) }
+                if let listed = Self.listedInputs[key] {
+                    self.setInputs(listed)
+                } else if Self.capabilityWaiters[key] == nil {
+                    self.setInputs([])  // The capabilities read failed.
+                }
             }
         }
-        // The capabilities string takes a couple of seconds to read and holds up other DDC commands meanwhile,
-        // so it's read once per display rather than on every reload.
-        guard Self.listedInputs[id] == nil else { return }
+        // The capabilities string takes a couple of seconds to read and holds up other DDC commands meanwhile, so it's
+        // read once per monitor rather than on every reload. A reload during the read (common on wake or hot-plug)
+        // waits for it instead of starting a second one: two reads at once garble each other's replies.
+        guard Self.listedInputs[key] == nil else { return }
+        let apply: ([InputSource]) -> Void = { [weak self] listed in self?.setInputs(listed) }
+        guard Self.capabilityWaiters[key] == nil else {
+            Self.capabilityWaiters[key]?.append(apply)
+            return
+        }
+        Self.capabilityWaiters[key] = [apply]
         let vendor = vendor
-        ddc.readCapabilities { [weak self] capabilities in
+        ddc.readCapabilities { capabilities in
             let listed = capabilities.map { InputSource.parse(capabilities: $0, vendor: vendor) } ?? []
             DispatchQueue.main.async {
-                guard let self else { return }
-                if capabilities != nil { Self.listedInputs[self.id] = listed }
-                self.setInputs(listed)
+                if capabilities != nil { Self.listedInputs[key] = listed }
+                Self.capabilityWaiters.removeValue(forKey: key)?.forEach { $0(listed) }
             }
         }
     }
 
+    /// Decodes a VCP 0x60 reply; some monitors put junk in the high byte, and 0 means no answer.
+    private func input(from result: (current: UInt16, max: UInt16)?) -> InputSource? {
+        guard let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 else { return nil }
+        return InputSource(value: value, vendor: vendor)
+    }
+
     private var vendor: UInt32 { CGDisplayVendorNumber(id) }
+
+    /// The input the monitor was on when DisplayDeck first found it this session, which is the one this Mac is on.
+    private var macInput: InputSource? { Self.macInputs[monitorKey] }
 
     func label(for input: InputSource) -> String {
         inputNames[input.value]?.trimmingCharacters(in: .whitespaces) ?? defaultName(for: input)
@@ -139,18 +158,22 @@ final class Display: Identifiable {
 
     private func saveInputNames() {
         var saved = Self.savedInputNames
-        saved[inputNamesKey] = inputNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: inputNames.map { (String($0.key), $0.value) })
+        saved[monitorKey] = inputNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: inputNames.map { (String($0.key), $0.value) })
         UserDefaults.standard.set(saved, forKey: "inputNames")
     }
 
-    /// Identifies the monitor across reconnects, and tells two of the same model apart by serial number.
-    private var inputNamesKey: String { "\(vendor)-\(CGDisplayModelNumber(id))-\(CGDisplaySerialNumber(id))" }
+    /// Identifies the monitor across reconnects. Two of the same model are told apart by serial number, except on
+    /// monitors that report serial 0, which then share input names.
+    private var monitorKey: String { "\(vendor)-\(CGDisplayModelNumber(id))-\(CGDisplaySerialNumber(id))" }
 
     private static var savedInputNames: [String: [String: String]] {
         UserDefaults.standard.dictionary(forKey: "inputNames") as? [String: [String: String]] ?? [:]
     }
 
-    private static var listedInputs: [CGDirectDisplayID: [InputSource]] = [:]
+    // Per monitor, for the rest of the session; Display objects are rebuilt on every reload.
+    private static var listedInputs: [String: [InputSource]] = [:]
+    private static var capabilityWaiters: [String: [([InputSource]) -> Void]] = [:]
+    private static var macInputs: [String: InputSource] = [:]
 
     private func setInputs(_ listed: [InputSource]) {
         var inputs = listed.isEmpty && currentInput != nil ? InputSource.common(vendor: vendor) : listed
@@ -207,9 +230,7 @@ final class Display: Identifiable {
         guard source == .ddc, !probing, !inputs.isEmpty else { return }
         ddc?.read(.inputSource) { [weak self] result in
             DispatchQueue.main.async {
-                guard let self, self.inputSwitch == attempt,
-                      let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 else { return }
-                let current = InputSource(value: value, vendor: self.vendor)
+                guard let self, self.inputSwitch == attempt, let current = self.input(from: result) else { return }
                 self.currentInput = current
                 if !self.inputs.contains(current) { self.inputs.append(current) }
             }
