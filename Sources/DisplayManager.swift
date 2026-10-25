@@ -128,6 +128,16 @@ final class Display: Identifiable {
     /// Called on every keystroke, so the name is only trimmed when shown. An empty name goes back to the default.
     func renameInput(_ input: InputSource, to name: String) {
         inputNames[input.value] = name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name
+        saveInputNames()
+    }
+
+    /// Goes back to the default name for every input on this monitor.
+    func resetInputNames() {
+        inputNames = [:]
+        saveInputNames()
+    }
+
+    private func saveInputNames() {
         var saved = Self.savedInputNames
         saved[inputNamesKey] = inputNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: inputNames.map { (String($0.key), $0.value) })
         UserDefaults.standard.set(saved, forKey: "inputNames")

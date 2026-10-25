@@ -121,6 +121,10 @@ private struct InputRow: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if renaming {
+                    Button("Reset") { display.resetInputNames() }
+                        .controlSize(.small)
+                        .disabled(display.inputNames.isEmpty)
+                        .help("Use the default name for every input")
                     Button("Done") { renaming = false }
                         .controlSize(.small)
                 } else {
