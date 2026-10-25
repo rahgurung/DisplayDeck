@@ -193,7 +193,7 @@ private struct SettingsView: View {
 
     private var shortcutsTab: some View {
         SettingsPage {
-            Text("Work on any keyboard and in every app, without Accessibility access. Brightness and volume change the same displays as the keys (see Keyboard).")
+            Text("Shortcuts work on any keyboard and in every app, without Accessibility access. Brightness and volume change the same displays as the keys (see Keyboard). System shortcuts like ⌘Space can’t be used.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -285,6 +285,8 @@ private struct ShortcutRecorder: View {
     let shortcuts: Shortcuts
 
     @State private var monitor: Any?
+    /// Shown in the button after a key without enough modifiers, until the next key.
+    @State private var hint: String?
 
     private var isRecording: Bool { shortcuts.recording == action }
 
@@ -296,7 +298,7 @@ private struct ShortcutRecorder: View {
                     .help("macOS wouldn’t set this shortcut. Another app may be using it.")
             }
             Button { isRecording ? stop() : start() } label: {
-                Text(isRecording ? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
+                Text(isRecording ? hint ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
                     .foregroundStyle(isRecording || shortcuts.combo(for: action) == nil ? .secondary : .primary)
                     .frame(minWidth: 104)
             }
@@ -312,14 +314,17 @@ private struct ShortcutRecorder: View {
             .disabled(shortcuts.combo(for: action) == nil || isRecording)
         }
         .onDisappear { stop() }
+        // Also when a system shortcut like ⌘Space opens something else.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
+        // Another recorder was clicked: this one's key monitor goes, or it would outlive the recording.
+        .onChange(of: isRecording) { _, recording in if !recording { removeMonitor() } }
     }
 
     private func start() {
+        removeMonitor()
+        hint = nil
         shortcuts.recording = action
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Another recorder was clicked since; let it have the key.
-            guard shortcuts.recording == action else { stop(); return event }
             let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
             switch Int(event.keyCode) {
             case kVK_Escape:
@@ -328,7 +333,11 @@ private struct ShortcutRecorder: View {
                 shortcuts.set(nil, for: action)
                 stop()
             default:
-                guard let combo = KeyCombo(event: event) else { NSSound.beep(); break }
+                guard let combo = KeyCombo(event: event) else {
+                    NSSound.beep()
+                    hint = KeyCombo.modifiersNeeded(keyCode: event.keyCode) == 2 ? "Add two of ⌃ ⌥ ⌘" : "Add ⌃, ⌥ or ⌘"
+                    break
+                }
                 shortcuts.set(combo, for: action)
                 stop()
             }
@@ -337,9 +346,13 @@ private struct ShortcutRecorder: View {
     }
 
     private func stop() {
+        removeMonitor()
+        if isRecording { shortcuts.recording = nil }
+    }
+
+    private func removeMonitor() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
-        if isRecording { shortcuts.recording = nil }
     }
 }
 

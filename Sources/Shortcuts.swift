@@ -10,13 +10,20 @@ struct KeyCombo: Codable, Equatable {
     /// the keyboard layout.
     let key: String
 
-    /// The combination typed in the recorder, or nil for a key that can't be a global shortcut on its own (a letter
-    /// without ⌘, ⌃ or ⌥ would stop that letter typing in every app; function keys are fine alone).
+    /// How many of ⌘, ⌃ and ⌥ a key needs to be a global shortcut. A global shortcut takes the keys from every app, so
+    /// a letter, number or symbol needs two: with one, it could replace ⌘C or ⌘Q everywhere, or stop ⌥E typing an
+    /// accent. Arrows and other special keys need one, and function keys none.
+    static func modifiersNeeded(keyCode: UInt16) -> Int {
+        let code = UInt32(keyCode)
+        return functionKeys[code] != nil ? 0 : specialKeys[code] != nil ? 1 : 2
+    }
+
+    /// The combination typed in the recorder, or nil without the modifiers the key needs (`modifiersNeeded`).
     init?(event: NSEvent) {
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let code = UInt32(event.keyCode)
-        let functionKey = Self.functionKeys[code] != nil
-        guard functionKey || !flags.intersection([.command, .option, .control]).isEmpty else { return nil }
+        let held = [NSEvent.ModifierFlags.command, .option, .control].filter(flags.contains).count
+        guard held >= Self.modifiersNeeded(keyCode: event.keyCode) else { return nil }
         guard let key = Self.specialKeys[code] ?? Self.functionKeys[code]
                 ?? event.charactersIgnoringModifiers?.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
               !key.isEmpty else { return nil }
@@ -222,9 +229,10 @@ final class Shortcuts {
     private func stepBrightness(_ delta: Double) {
         var targets = targets
         var followers = 0
-        // Monitors following the built-in display move with it; stepping them as well would move them twice.
+        // Monitors following the built-in display move with it (including ones still connecting, once they're done);
+        // stepping them as well would move them twice. Apple displays don't follow, so they still step.
         if DisplayManager.followsBuiltin, let builtin = targets.first(where: \.isBuiltin) {
-            targets = [builtin] + targets.filter { !$0.canFollowBuiltin && !$0.isBuiltin }
+            targets = [builtin] + targets.filter { !$0.isBuiltin && $0.source == .apple }
             followers = manager.displays.filter(\.canFollowBuiltin).count
         }
         guard !targets.isEmpty else { return }
@@ -239,7 +247,10 @@ final class Shortcuts {
 
     /// - Parameter delta: the step, or nil to mute (or unmute to half volume).
     private func stepVolume(_ delta: Double?) {
-        let targets = targets.filter { $0.volume != nil }
+        var targets = targets.filter { $0.volume != nil }
+        // These only control monitor speakers, so over a display without any (like the built-in one), use every
+        // monitor that has them rather than doing nothing.
+        if targets.isEmpty { targets = manager.displays.filter { $0.volume != nil } }
         guard !targets.isEmpty else { return }
         for display in targets {
             let current = display.volume ?? 0
