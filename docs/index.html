@@ -244,8 +244,8 @@ footer a { color: var(--muted); }
   <div class="wrap">
     <a class="brand" href="./"><img src="icon.png" alt="">DisplayDeck</a>
     <nav>
-      <a class="nav-link" href="compare.html">Compare</a>
-      <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+      <a class="nav-link" href="compare">Compare</a>
+      <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck" target="_blank" rel="noopener"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
     </nav>
   </div>
 </header>
@@ -291,7 +291,7 @@ footer a { color: var(--muted); }
     <h2>Everything your monitor's buttons do, minus the buttons.</h2>
     <p class="section-lede">DisplayDeck lives in the menu bar and talks to your displays directly, so the settings you change are the real ones.</p>
     <div class="grid">
-      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-sun"/></svg></div><h3>Real brightness</h3><p>Changes the monitor's own backlight over DDC/CI, not a dark overlay, so blacks stay black and power use drops.</p></div>
+      <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-sun"/></svg></div><h3>Real brightness</h3><p>Changes the monitor's own backlight over DDC/CI, not a dark overlay, so blacks stay black. It can even follow your MacBook's screen, auto-brightness included.</p></div>
       <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-keys"/></svg></div><h3>Brightness keys that work</h3><p>Press <span class="kbd">F1</span> <span class="kbd">F2</span> and the display under your pointer responds, with a clean on-screen indicator.</p></div>
       <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-speaker"/></svg></div><h3>Monitor speakers</h3><p>Control the volume of speakers built into your monitor, from a slider or your volume keys.</p></div>
       <div class="card"><div class="ic"><svg width="22" height="22" aria-hidden="true"><use href="#i-contrast"/></svg></div><h3>Inputs &amp; contrast</h3><p>Switch between HDMI, DisplayPort and USB‑C and give each input a name, plus contrast on monitors that support it.</p></div>
@@ -327,7 +327,7 @@ footer a { color: var(--muted); }
       </div>
       <div class="card">
         <h3 style="margin: 0 0 8px; font-size: 18px">Open source, MIT licensed</h3>
-        <p style="margin: 0; color: var(--muted); font-size: 15.5px">About 1,000 lines of Swift with no dependencies. Read it, build it yourself, or <a href="https://github.com/rahgurung/DisplayDeck">contribute on GitHub</a>. Releases are signed and notarized by Apple.</p>
+        <p style="margin: 0; color: var(--muted); font-size: 15.5px">About 1,000 lines of Swift with no dependencies. Read it, build it yourself, or <a href="https://github.com/rahgurung/DisplayDeck" target="_blank" rel="noopener">contribute on GitHub</a>. Releases are signed and notarized by Apple.</p>
       </div>
     </div>
   </section>
@@ -346,14 +346,14 @@ footer a { color: var(--muted); }
     <h2>Older versions</h2>
     <p class="section-lede">Need an earlier build? Every release stays available here.</p>
     <ul class="releases" data-older></ul>
-    <p class="all-releases"><a href="https://github.com/rahgurung/DisplayDeck/releases">All releases and changelogs on GitHub →</a></p>
+    <p class="all-releases"><a href="https://github.com/rahgurung/DisplayDeck/releases" target="_blank" rel="noopener">All releases and changelogs on GitHub →</a></p>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span>DisplayDeck by <a href="https://rahulgurung.com">Rahul Gurung</a></span>
-    <span><a href="compare.html">Compare</a> · <a href="https://github.com/rahgurung/DisplayDeck">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases" data-older-link>Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE">MIT License</a></span>
+    <span>DisplayDeck by <a href="https://rahulgurung.com" target="_blank" rel="noopener">Rahul Gurung</a></span>
+    <span><a href="compare">Compare</a> · <a href="https://github.com/rahgurung/DisplayDeck" target="_blank" rel="noopener">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases" data-older-link target="_blank" rel="noopener">Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></span>
   </div>
 </footer>
 
@@ -404,6 +404,8 @@ footer a { color: var(--muted); }
         meta.textContent = `${formatDate(release.date)} · ${formatSize(release.dmg.size)}`;
         const notes = document.createElement('a');
         notes.href = release.notes;
+        notes.target = '_blank';
+        notes.rel = 'noopener';
         notes.textContent = 'Release notes';
         const download = document.createElement('a');
         download.className = 'dl';
@@ -413,8 +415,10 @@ footer a { color: var(--muted); }
         list.append(li);
       }
       document.getElementById('older').hidden = false;
-      document.querySelector('[data-older-link]').href = '#older';
-      document.querySelector('[data-older-link]').textContent = 'Older versions';
+      const olderLink = document.querySelector('[data-older-link]');
+      olderLink.href = '#older';
+      olderLink.removeAttribute('target');  // Now a link within the page.
+      olderLink.textContent = 'Older versions';
     })
     .catch(() => {});
 
