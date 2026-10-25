@@ -98,6 +98,8 @@ Instead, render the real SwiftUI views offscreen:
   - `gh project item-edit --project-id PVT_kwHOAdIOVM4Bomky --id <item> --field-id <field> --single-select-option-id <option>`
 - Issues have a summary line, a **Competitors** section (table of what MonitorControl, Lunar, BetterDisplay and
   DisplayBuddy offer, with sources, plus "Our angle"), then Why / Scope. Mark unverified claims as such.
+- Website links to other sites open in a new tab (`target="_blank" rel="noopener"`), including links made in
+  scripts. Download buttons and links within the site don't.
 - Keep `docs/compare.html` honest: every ✓ / Pro / — needs a source; otherwise "Not checked". Planned items link to issues.
   Update it when a planned feature ships.
 
