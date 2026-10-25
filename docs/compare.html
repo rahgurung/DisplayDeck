@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DisplayDeck vs MonitorControl, Lunar, BetterDisplay and DisplayBuddy</title>
+<meta name="description" content="How DisplayDeck compares with other Mac apps for external monitor brightness, contrast, volume and input switching: MonitorControl, Lunar, BetterDisplay and DisplayBuddy.">
+<meta property="og:title" content="DisplayDeck compared">
+<meta property="og:description" content="An honest feature comparison of Mac apps for controlling external monitors.">
+<meta property="og:image" content="https://displaydeck.rahulgurung.com/icon.png">
+<meta property="og:url" content="https://displaydeck.rahulgurung.com/compare.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+/* Tokens and base styles match index.html. */
+:root {
+  --bg: #F6F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #EEEFF3;
+  --text: #15171E;
+  --muted: #5A5F6E;
+  --line: rgba(20, 22, 30, 0.10);
+  --brand: #3E4BF0;
+  --brand-deep: #1F27A6;
+  --brand-ink: #2C37D6;
+  --yes: #1E8E4E;
+  --pro-bg: rgba(176, 106, 0, 0.12);
+  --pro-text: #8A5300;
+  --plan-bg: rgba(62, 75, 240, 0.12);
+  --radius: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E0F14;
+    --surface: #171920;
+    --surface-2: #1F222B;
+    --text: #EDEEF3;
+    --muted: #A1A5B3;
+    --line: rgba(255, 255, 255, 0.09);
+    --brand-ink: #8E97FF;
+    --yes: #4CD38A;
+    --pro-bg: rgba(255, 179, 64, 0.14);
+    --pro-text: #FFC266;
+    --plan-bg: rgba(142, 151, 255, 0.16);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--brand-ink); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+header { padding: 20px 0; }
+header .wrap { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
+.brand img { width: 32px; height: 32px; }
+nav { display: flex; gap: 4px; }
+.nav-link { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 10px; }
+.nav-link:hover, .nav-link[aria-current] { color: var(--text); background: var(--surface-2); }
+
+.hero { padding-top: 40px; padding-bottom: 8px; }
+h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 16px; font-weight: 800; }
+.lede { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 700px; margin: 0; }
+.checked { margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+
+section.wrap { padding-top: 64px; }
+h2 { font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 12px; font-weight: 800; }
+.section-lede { color: var(--muted); max-width: 680px; margin: 0 0 28px; font-size: 17px; }
+
+/* Comparison table: scrolls sideways inside its card on narrow screens, with the feature column pinned. */
+.table-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line); overflow-x: auto; }
+table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 15px; }
+th, td { padding: 13px 14px; text-align: center; vertical-align: middle; border-bottom: 1px solid var(--line); }
+tr:last-child td, tr:last-child th { border-bottom: 0; }
+thead th { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; }
+thead th.us { color: var(--brand-ink); }
+thead th:first-child { text-align: left; }
+tbody th { text-align: left; font-weight: 500; }
+th[scope=row], thead th:first-child { position: sticky; left: 0; background: var(--surface); width: 30%; min-width: 190px; }
+td.us { background: rgba(62, 75, 240, 0.05); }
+tr.group th { padding-top: 22px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.yes { color: var(--yes); font-weight: 700; }
+.no { color: var(--muted); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+.pro { background: var(--pro-bg); color: var(--pro-text); }
+.plan { background: var(--plan-bg); color: var(--brand-ink); }
+a.plan:hover { text-decoration: underline; }
+.unk { color: var(--muted); font-size: 13px; }
+.note { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
+
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: 0 0 0 1px var(--line); }
+.card h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+.card.us { box-shadow: 0 0 0 2px var(--brand); }
+
+.sources { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; }
+.sources li + li { margin-top: 6px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border-radius: 14px; font-weight: 650; font-size: 16px; text-decoration: none;
+  background: var(--brand); color: #fff; box-shadow: 0 6px 20px rgba(62, 75, 240, 0.32);
+}
+.btn:hover { background: var(--brand-deep); }
+
+footer { padding: 72px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 24px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  .nav-link { padding: 8px; }
+  .nav-link .gh-label { display: none; }
+  section.wrap { padding-top: 48px; }
+  th[scope=row], thead th:first-child { min-width: 150px; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></g></symbol>
+</svg>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">DisplayDeck</a>
+    <nav>
+      <a class="nav-link" href="compare.html" aria-current="page">Compare</a>
+      <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg><span class="gh-label">GitHub</span></a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero wrap">
+    <h1>How DisplayDeck compares</h1>
+    <p class="lede">There are a few good Mac apps for controlling external monitors. Here's what each one does, including where the others are ahead, so you can pick the right one.</p>
+    <p class="checked">Checked against each app's own pages in October 2026. Apps change; if something here is out of date, <a href="https://github.com/rahgurung/DisplayDeck/issues/new">open an issue</a> and it'll be fixed.</p>
+  </div>
+
+  <section class="wrap" id="features">
+    <h2>Features at a glance</h2>
+    <p class="section-lede">“Planned” links to the DisplayDeck issue tracking that feature.</p>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Feature</th>
+            <th scope="col" class="us">DisplayDeck</th>
+            <th scope="col">MonitorControl</th>
+            <th scope="col">Lunar</th>
+            <th scope="col">BetterDisplay</th>
+            <th scope="col">DisplayBuddy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Price</th>
+            <td class="us"><span class="yes">Free</span></td>
+            <td><span class="yes">Free</span></td>
+            <td>Free + <span class="pill pro">Pro</span></td>
+            <td>Free + <span class="pill pro">Pro</span></td>
+            <td>Paid</td>
+          </tr>
+          <tr>
+            <th scope="row">Open source</th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span><span class="note">MIT</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+
+          <tr class="group"><th scope="row" colspan="6">Everyday control</th></tr>
+          <tr>
+            <th scope="row">Hardware brightness, contrast, volume (DDC)</th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Mac brightness &amp; volume keys</th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Software dimming when DDC isn't available</th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Input switching (HDMI, DisplayPort, USB‑C)<span class="note">DisplayDeck reads the monitor's own input list, and inputs can be renamed</span></th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Resolution &amp; refresh rate</th>
+            <td class="us"><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span><span class="note">custom &amp; HiDPI in Pro</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Custom keyboard shortcuts</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/7">Planned</a></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span><span class="note">advanced ones in Pro</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">One control for all displays</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/5">Planned</a></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+
+          <tr class="group"><th scope="row" colspan="6">Automation</th></tr>
+          <tr>
+            <th scope="row">Follow the built-in display's brightness</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/4">Planned</a></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="pill pro">Pro</span></td>
+            <td><span class="pill pro">Pro</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Presets</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/6">Planned</a></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span><span class="note">per app</span></td>
+            <td><span class="no" aria-label="No">—</span><span class="note">resolutions only</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Schedules (time, sunrise &amp; sunset)</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/8">Planned</a></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Shortcuts app actions</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/11">Planned</a></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+
+          <tr class="group"><th scope="row" colspan="6">Advanced</th></tr>
+          <tr>
+            <th scope="row">Dimming below the monitor's minimum</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/9">Planned</a></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Turn a monitor off from the Mac</th>
+            <td class="us"><a class="pill plan" href="https://github.com/rahgurung/DisplayDeck/issues/10">Planned</a></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span><span class="note">BlackOut</span></td>
+            <td><span class="pill pro">Pro</span><span class="note">soft-disconnect</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Extra XDR / HDR brightness</th>
+            <td class="us"><span class="no" aria-label="No">—</span></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="yes" aria-label="Yes">✓</span></td>
+            <td><span class="pill pro">Pro</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Virtual displays, picture in picture, EDID overrides</th>
+            <td class="us"><span class="no" aria-label="No">—</span></td>
+            <td><span class="no" aria-label="No">—</span></td>
+            <td><span class="unk">Not checked</span></td>
+            <td><span class="pill pro">Pro</span></td>
+            <td><span class="unk">Not checked</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="legend">
+      <li><span class="yes">✓</span> Available</li>
+      <li><span class="pill pro">Pro</span> Paid upgrade</li>
+      <li><span class="pill plan">Planned</span> On DisplayDeck's roadmap</li>
+      <li><span class="no">—</span> Not offered, as far as its own pages say</li>
+      <li><span class="unk">Not checked</span> Couldn't confirm either way</li>
+    </ul>
+  </section>
+
+  <section class="wrap" id="which">
+    <h2>Which one is right for you?</h2>
+    <p class="section-lede">They overlap a lot. The differences are in focus and price.</p>
+    <div class="grid">
+      <div class="card us"><h3>DisplayDeck</h3><p>A small, free menu bar app for the everyday controls: real brightness, contrast, volume and input switching, plus resolution, refresh rate and mirroring. Signed, notarized and updates itself.</p></div>
+      <div class="card"><h3>MonitorControl</h3><p>The long-standing free, open-source option. Pick it if you need brightness to follow your MacBook's screen today, or one slider for every display.</p></div>
+      <div class="card"><h3>Lunar</h3><p>The automation app: brightness from the ambient light sensor, sunrise and sunset, per-app presets, dimming below the minimum and extra XDR brightness. Many of these need Lunar Pro.</p></div>
+      <div class="card"><h3>BetterDisplay</h3><p>The power-user toolbox: custom and HiDPI resolutions, virtual displays, picture in picture and EDID overrides, with brightness control alongside. Advanced features need Pro.</p></div>
+      <div class="card"><h3>DisplayBuddy</h3><p>A polished paid app covering brightness, contrast, volume, inputs and presets, according to its own site.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="sources">
+    <h2>Sources</h2>
+    <ul class="sources">
+      <li><a href="https://github.com/MonitorControl/MonitorControl">MonitorControl on GitHub</a>: features in the README.</li>
+      <li><a href="https://github.com/alin23/Lunar">Lunar on GitHub</a>, <a href="https://lunar.fyi/pro">Lunar Pro</a> and the <a href="https://newreleases.io/project/github/alin23/Lunar/release/v5.0.0">Lunar 5.0 release notes</a>.</li>
+      <li><a href="https://github.com/waydabber/BetterDisplay">BetterDisplay on GitHub</a> and its <a href="https://github.com/waydabber/BetterDisplay/wiki/List-of-free-and-Pro-features">list of free and Pro features</a>.</li>
+      <li><a href="https://displaybuddy.app/best-monitor-control-software-mac">DisplayBuddy's own comparison page</a>, the source for its feature list.</li>
+    </ul>
+  </section>
+
+  <section class="wrap">
+    <h2>Try DisplayDeck</h2>
+    <p class="section-lede">Free, for Apple Silicon Macs on macOS 14 or later.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/rahgurung/DisplayDeck/releases/latest"><svg width="20" height="20" aria-hidden="true"><use href="#i-download"/></svg>Download for Mac</a>
+      <a href="./">More about DisplayDeck →</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>DisplayDeck by <a href="https://rahulgurung.com">Rahul Gurung</a></span>
+    <span><a href="./">Home</a> · <a href="https://github.com/rahgurung/DisplayDeck">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases">Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE">MIT License</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
