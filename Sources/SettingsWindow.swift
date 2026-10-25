@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import Combine
 import ServiceManagement
 import SwiftUI
@@ -10,9 +11,9 @@ final class SettingsWindow {
 
     private var window: NSWindow?
 
-    func show(manager: DisplayManager, keys: MediaKeys) {
+    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts) {
         if window == nil {
-            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys))
+            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts))
             let window = NSWindow(contentViewController: controller)
             window.title = "DisplayDeck"
             window.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -32,7 +33,7 @@ final class SettingsWindow {
 }
 
 private enum SettingsTab: String {
-    case general, displays, keyboard, updates
+    case general, displays, keyboard, shortcuts, updates
 
     var title: String { rawValue.capitalized }
 }
@@ -40,6 +41,7 @@ private enum SettingsTab: String {
 private struct SettingsView: View {
     let manager: DisplayManager
     let keys: MediaKeys
+    let shortcuts: Shortcuts
 
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
@@ -89,6 +91,7 @@ private struct SettingsView: View {
                 case .general: generalTab
                 case .displays: displaysTab
                 case .keyboard: keyboardTab
+                case .shortcuts: shortcutsTab
                 case .updates: updatesTab
                 }
             }
@@ -114,7 +117,8 @@ private struct SettingsView: View {
 
     /// Updates only exist in release builds, which carry a feed URL.
     private var tabs: [SettingsTab] {
-        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .updates] : [.general, .displays, .keyboard]
+        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .shortcuts, .updates]
+            : [.general, .displays, .keyboard, .shortcuts]
     }
 
     private var generalTab: some View {
@@ -187,6 +191,27 @@ private struct SettingsView: View {
             : "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press."
     }
 
+    private var shortcutsTab: some View {
+        SettingsPage {
+            Text("Work on any keyboard and in every app, without Accessibility access. Brightness and volume change the same displays as the keys (see Keyboard).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(ShortcutAction.levels, id: \.self) { action in
+                ShortcutRow(title: action.title, action: action, shortcuts: shortcuts)
+            }
+            ForEach(manager.displays.filter { $0.source == .ddc && !$0.inputs.isEmpty }) { display in
+                Divider()
+                Text("\(display.name) inputs")
+                    .font(.callout.weight(.medium))
+                ForEach(display.inputs) { input in
+                    ShortcutRow(title: display.label(for: input),
+                                action: .input(monitor: display.monitorKey, value: input.value), shortcuts: shortcuts)
+                }
+            }
+        }
+    }
+
     private var updatesTab: some View {
         SettingsPage {
             SwitchRow(title: "Automatically check for updates",
@@ -237,6 +262,84 @@ private struct SwitchRow: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+}
+
+private struct ShortcutRow: View {
+    let title: String
+    let action: ShortcutAction
+    let shortcuts: Shortcuts
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            ShortcutRecorder(action: action, shortcuts: shortcuts)
+        }
+    }
+}
+
+/// Click to record a shortcut, then type it; Esc cancels and Delete clears it.
+private struct ShortcutRecorder: View {
+    let action: ShortcutAction
+    let shortcuts: Shortcuts
+
+    @State private var monitor: Any?
+
+    private var isRecording: Bool { shortcuts.recording == action }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if shortcuts.unavailable.contains(action.id) && !isRecording {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("macOS wouldn’t set this shortcut. Another app may be using it.")
+            }
+            Button { isRecording ? stop() : start() } label: {
+                Text(isRecording ? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
+                    .foregroundStyle(isRecording || shortcuts.combo(for: action) == nil ? .secondary : .primary)
+                    .frame(minWidth: 104)
+            }
+            .controlSize(.small)
+            Button { shortcuts.set(nil, for: action) } label: {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.tertiary)
+            .help("Clear")
+            // Kept in the layout when there's nothing to clear, so the shortcut buttons line up.
+            .opacity(shortcuts.combo(for: action) == nil || isRecording ? 0 : 1)
+            .disabled(shortcuts.combo(for: action) == nil || isRecording)
+        }
+        .onDisappear { stop() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
+    }
+
+    private func start() {
+        shortcuts.recording = action
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Another recorder was clicked since; let it have the key.
+            guard shortcuts.recording == action else { stop(); return event }
+            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            switch Int(event.keyCode) {
+            case kVK_Escape:
+                stop()
+            case kVK_Delete where modifiers.isEmpty:
+                shortcuts.set(nil, for: action)
+                stop()
+            default:
+                guard let combo = KeyCombo(event: event) else { NSSound.beep(); break }
+                shortcuts.set(combo, for: action)
+                stop()
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        if isRecording { shortcuts.recording = nil }
     }
 }
 
