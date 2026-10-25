@@ -15,7 +15,7 @@ cd "$(dirname "$0")"
 # Local, untracked settings such as TELEMETRYDECK_APP_ID.
 [[ -f release.env ]] && source release.env
 # Releases pass VERSION; local builds take it from the latest v* tag, e.g. 1.2.1, or 1.2.1-3-gb49ee3b after it.
-VERSION=${VERSION:-$(git describe --tags --match 'v*' 2>/dev/null | sed 's/^v//')}
+VERSION=${VERSION:-$(git describe --tags --match 'v*' 2>/dev/null | sed 's/^v//' || true)}
 VERSION=${VERSION:-1.0}
 TELEMETRYDECK_APP_ID=${TELEMETRYDECK_APP_ID:-}
 [[ "${1:-}" == "--release" ]] && TEST_MODE=false || TEST_MODE=true
