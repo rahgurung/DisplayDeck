@@ -69,6 +69,7 @@ header .wrap { display: flex; align-items: center; justify-content: space-betwee
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
 .brand img { width: 32px; height: 32px; }
 .nav-link { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 10px; }
+nav { display: flex; gap: 4px; }
 .nav-link:hover { color: var(--text); background: var(--surface-2); }
 
 /* Hero */
@@ -242,7 +243,10 @@ footer a { color: var(--muted); }
 <header>
   <div class="wrap">
     <a class="brand" href="./"><img src="icon.png" alt="">DisplayDeck</a>
-    <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+    <nav>
+      <a class="nav-link" href="compare.html">Compare</a>
+      <a class="nav-link" href="https://github.com/rahgurung/DisplayDeck"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+    </nav>
   </div>
 </header>
 
@@ -349,7 +353,7 @@ footer a { color: var(--muted); }
 <footer>
   <div class="wrap">
     <span>DisplayDeck by <a href="https://rahulgurung.com">Rahul Gurung</a></span>
-    <span><a href="https://github.com/rahgurung/DisplayDeck">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases" data-older-link>Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE">MIT License</a></span>
+    <span><a href="compare.html">Compare</a> · <a href="https://github.com/rahgurung/DisplayDeck">Source</a> · <a href="https://github.com/rahgurung/DisplayDeck/releases" data-older-link>Releases</a> · <a href="https://github.com/rahgurung/DisplayDeck/blob/main/LICENSE">MIT License</a></span>
   </div>
 </footer>
 
