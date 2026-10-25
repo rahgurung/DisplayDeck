@@ -12,6 +12,9 @@ final class MediaKeys {
 
     var brightnessEnabled: Bool { UserDefaults.standard.object(forKey: "brightnessKeys") as? Bool ?? true }
     var volumeEnabled: Bool { UserDefaults.standard.bool(forKey: "volumeKeys") }
+    /// Whether the keys adjust every display rather than the one under the pointer. Holding Control does the other for one
+    /// press (not Option: Option with a brightness key opens Displays settings in macOS).
+    var controlsAllDisplays: Bool { UserDefaults.standard.bool(forKey: "keysControlAllDisplays") }
 
     init(manager: DisplayManager) {
         self.manager = manager
@@ -51,26 +54,37 @@ final class MediaKeys {
         let isDown = ((ns.data1 & 0xFF00) >> 8) == 0xA
         let isBrightness = keyCode == Self.keyBrightnessUp || keyCode == Self.keyBrightnessDown
         let isVolume = keyCode == Self.keyVolumeUp || keyCode == Self.keyVolumeDown || keyCode == Self.keyMute
+        let all = controlsAllDisplays != ns.modifierFlags.contains(.control)
 
         if isBrightness && brightnessEnabled {
-            let targets = manager.displaysUnderCursor()
+            let targets = all ? manager.displays : manager.displaysUnderCursor()
             let externals = targets.filter { !$0.isBuiltin }
             guard !externals.isEmpty else { return Unmanaged.passUnretained(event) }
+            // Monitors following the built-in display follow the change macOS makes to it; adjusting them here as well
+            // would move them twice.
+            if all && DisplayManager.followsBuiltin && targets.contains(where: \.isBuiltin) {
+                return Unmanaged.passUnretained(event)
+            }
             if isDown {
                 let delta = keyCode == Self.keyBrightnessUp ? Self.step : -Self.step
+                let caption = all && targets.count > 1 ? "All displays" : nil
                 DispatchQueue.main.async {
                     for display in externals { display.setBrightness(display.brightness + delta) }
-                    if let first = externals.first { HUD.shared.show(symbol: "sun.max.fill", value: first.brightness) }
+                    if let first = externals.first {
+                        HUD.shared.show(symbol: "sun.max.fill", value: first.brightness, caption: caption)
+                    }
                 }
             }
-            // If the built-in is also targeted (e.g. mirroring), let macOS handle it too.
+            // If the built-in is also targeted (all displays, or mirroring), let macOS handle it too.
             return targets.contains { $0.isBuiltin } ? Unmanaged.passUnretained(event) : nil
         }
 
         if isVolume && volumeEnabled {
-            let externals = manager.displaysUnderCursor().filter { !$0.isBuiltin && $0.volume != nil }
+            let targets = all ? manager.displays : manager.displaysUnderCursor()
+            let externals = targets.filter { !$0.isBuiltin && $0.volume != nil }
             guard !externals.isEmpty else { return Unmanaged.passUnretained(event) }
             if isDown {
+                let caption = all && externals.count > 1 ? "All displays" : nil
                 DispatchQueue.main.async {
                     for display in externals {
                         let current = display.volume ?? 0
@@ -79,7 +93,7 @@ final class MediaKeys {
                         display.setVolume(next)
                     }
                     if let v = externals.first?.volume {
-                        HUD.shared.show(symbol: v == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill", value: v)
+                        HUD.shared.show(symbol: v == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill", value: v, caption: caption)
                     }
                 }
             }

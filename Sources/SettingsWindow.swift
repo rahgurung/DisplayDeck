@@ -41,6 +41,7 @@ private struct SettingsView: View {
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
     @AppStorage("volumeKeys") private var volumeKeys = false
+    @AppStorage("keysControlAllDisplays") private var keysControlAllDisplays = false
     @AppStorage("showWindowAtLaunch") private var showAtLaunch = true
     @AppStorage("shareAnalytics") private var shareAnalytics = true
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
@@ -146,13 +147,18 @@ private struct SettingsView: View {
     private var keyboardTab: some View {
         SettingsPage {
             SwitchRow(title: "Brightness keys control monitors",
-                      detail: "Adjusts the monitor under your pointer.", isOn: $brightnessKeys)
+                      detail: keysControlAllDisplays ? "Adjusts every monitor." : "Adjusts the monitor under your pointer.",
+                      isOn: $brightnessKeys)
                 .onChange(of: brightnessKeys) { _, on in if on { keys.start() } }
             Divider()
             SwitchRow(title: "Volume keys control monitor speakers",
                       detail: "For monitors with built-in speakers.", isOn: $volumeKeys)
                 .onChange(of: volumeKeys) { _, on in if on { keys.start() } }
             if brightnessKeys || volumeKeys {
+                Divider()
+                SwitchRow(title: "Keys adjust all displays at once",
+                          detail: "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press.",
+                          isOn: $keysControlAllDisplays)
                 Divider()
                 AccessibilityRow(trusted: trusted)
             }

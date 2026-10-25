@@ -12,6 +12,7 @@ final class HUD {
     @Observable final class Model {
         var symbol = "sun.max.fill"
         var value = 0.5
+        var caption: String?
     }
 
     private init() {
@@ -25,9 +26,11 @@ final class HUD {
         panel.contentView = NSHostingView(rootView: HUDView(model: model))
     }
 
-    func show(symbol: String, value: Double) {
+    /// - Parameter caption: shown above the bar, e.g. "All displays" when a key changed more than one display.
+    func show(symbol: String, value: Double, caption: String? = nil) {
         model.symbol = symbol
         model.value = value
+        model.caption = caption
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
         if let frame = screen?.visibleFrame {
@@ -56,8 +59,15 @@ private struct HUDView: View {
             Image(systemName: model.symbol)
                 .font(.system(size: 18, weight: .semibold))
                 .frame(width: 22)
-            ProgressView(value: model.value)
-                .progressViewStyle(.linear)
+            VStack(alignment: .leading, spacing: 3) {
+                if let caption = model.caption {
+                    Text(caption)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView(value: model.value)
+                    .progressViewStyle(.linear)
+            }
         }
         .padding(.horizontal, 18)
         .frame(width: 220, height: 56)
