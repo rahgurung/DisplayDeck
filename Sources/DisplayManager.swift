@@ -81,15 +81,16 @@ final class Display: Identifiable {
         ddc.read(.inputSource) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 { self.currentInput = InputSource(value: value) }
+                if let value = result.map({ UInt8($0.current & 0xFF) }), value != 0 { self.currentInput = InputSource(value: value, vendor: self.vendor) }
                 if let listed = Self.listedInputs[self.id] { self.setInputs(listed) }
             }
         }
         // The capabilities string takes a couple of seconds to read and holds up other DDC commands meanwhile,
         // so it's read once per display rather than on every reload.
         guard Self.listedInputs[id] == nil else { return }
+        let vendor = vendor
         ddc.readCapabilities { [weak self] capabilities in
-            let listed = capabilities.map(InputSource.parse(capabilities:)) ?? []
+            let listed = capabilities.map { InputSource.parse(capabilities: $0, vendor: vendor) } ?? []
             DispatchQueue.main.async {
                 guard let self else { return }
                 if capabilities != nil { Self.listedInputs[self.id] = listed }
@@ -98,10 +99,12 @@ final class Display: Identifiable {
         }
     }
 
+    private var vendor: UInt32 { CGDisplayVendorNumber(id) }
+
     private static var listedInputs: [CGDirectDisplayID: [InputSource]] = [:]
 
     private func setInputs(_ listed: [InputSource]) {
-        var inputs = listed.isEmpty && currentInput != nil ? InputSource.common : listed
+        var inputs = listed.isEmpty && currentInput != nil ? InputSource.common(vendor: vendor) : listed
         if let current = currentInput, !inputs.contains(current) { inputs.append(current) }
         self.inputs = inputs
     }

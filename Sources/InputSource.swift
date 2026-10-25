@@ -3,9 +3,21 @@ import Foundation
 /// A monitor input (VCP 0x60 value) such as HDMI 1 or DisplayPort 1.
 struct InputSource: Identifiable, Hashable {
     let value: UInt8
+    /// The display's EISA vendor number (CGDisplayVendorNumber), since codes above 0x12 mean different
+    /// connectors to different manufacturers.
+    let vendor: UInt32
     var id: UInt8 { value }
 
+    private static let benQ: UInt32 = 0x09D1  // "BNQ"
+    private static let dell: UInt32 = 0x10AC  // "DEL"
+
+    /// MCCS defines no code for USB-C; these are the ones manufacturers use for it.
+    private static let usbC: [UInt32: UInt8] = [benQ: 0x13, dell: 0x1B]
+
+    private var isUSBC: Bool { Self.usbC[vendor] == value }
+
     var name: String {
+        if isUSBC { return "USB-C" }
         switch value {
         case 0x01: return "VGA 1"
         case 0x02: return "VGA 2"
@@ -15,26 +27,27 @@ struct InputSource: Identifiable, Hashable {
         case 0x10: return "DisplayPort 2"
         case 0x11: return "HDMI 1"
         case 0x12: return "HDMI 2"
-        case 0x13: return "HDMI 3"
-        case 0x1B: return "USB-C"
         default: return String(format: "Input 0x%02X", value)
         }
     }
 
     var symbol: String {
+        if isUSBC { return "cable.connector" }
         switch value {
         case 0x0F, 0x10: return "display"
-        case 0x11, 0x12, 0x13: return "tv"
-        case 0x1B: return "cable.connector"
+        case 0x11, 0x12: return "tv"
         default: return "rectangle.connected.to.line.below"
         }
     }
 
-    /// Offered when the monitor doesn't list its inputs: the connectors most monitors have.
-    static let common: [InputSource] = [0x0F, 0x10, 0x11, 0x12, 0x1B].map(InputSource.init)
+    /// Offered when the monitor doesn't list its inputs: the connectors most monitors have, plus USB-C
+    /// where the manufacturer's code for it is known.
+    static func common(vendor: UInt32) -> [InputSource] {
+        ([0x0F, 0x10, 0x11, 0x12] + (usbC[vendor].map { [$0] } ?? [])).map { InputSource(value: $0, vendor: vendor) }
+    }
 
     /// The inputs listed for VCP 60 in a capabilities string, e.g. `vcp(10 12 60(0F 11 12) 62)` → DP 1, HDMI 1, HDMI 2.
-    static func parse(capabilities: String) -> [InputSource] {
+    static func parse(capabilities: String, vendor: UInt32) -> [InputSource] {
         let text = capabilities.uppercased()
         guard let vcp = text.range(of: "VCP(") else { return [] }
         // Walk the vcp list at depth 1 looking for the code 60 followed by its own (…) list of values.
@@ -48,7 +61,7 @@ struct InputSource: Identifiable, Hashable {
             case "(":
                 // Some monitors pack codes without spaces ("106062("), so match 60 as the last two-digit code.
                 if depth == 1, token.count % 2 == 0, token.hasSuffix("60"), let close = text[index...].firstIndex(of: ")") {
-                    return hexBytes(text[index..<close]).map(InputSource.init)
+                    return hexBytes(text[index..<close]).map { InputSource(value: $0, vendor: vendor) }
                 }
                 depth += 1
                 token = ""
