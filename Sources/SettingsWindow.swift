@@ -270,16 +270,20 @@ private struct ShortcutRow: View {
     let action: ShortcutAction
     let shortcuts: Shortcuts
 
+    @State private var refusal: Refusal?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(title)
                 Spacer()
-                ShortcutRecorder(action: action, shortcuts: shortcuts)
+                ShortcutRecorder(action: action, shortcuts: shortcuts, refusal: $refusal)
             }
-            // Spelled out rather than in a tooltip, which takes a while to appear.
-            if let problem = shortcuts.problems[action.id], shortcuts.recording != action {
-                Text(problem)
+            // Spelled out rather than in a tooltip, which takes a while to appear: why the keys just typed were refused,
+            // or why the saved shortcut won't run.
+            let recording = shortcuts.recording == action
+            if let message = recording ? refusal?.detail : shortcuts.problems[action.id] {
+                Text(message)
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -288,14 +292,36 @@ private struct ShortcutRow: View {
     }
 }
 
+/// Why the recorder refused the keys just typed: shown briefly in its button and in full under the row.
+private enum Refusal {
+    case needsTwoModifiers, needsOneModifier, usedByMacOS
+
+    var short: String {
+        switch self {
+        case .needsTwoModifiers: "Add two of ⌃ ⌥ ⌘"
+        case .needsOneModifier: "Add ⌃, ⌥ or ⌘"
+        case .usedByMacOS: "Used by macOS"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .needsTwoModifiers:
+            "Letters, numbers and symbols need two of ⌃ ⌥ ⌘, so the shortcut doesn’t take keys that other apps use, like ⌘C."
+        case .needsOneModifier: "This key needs ⌃, ⌥ or ⌘."
+        case .usedByMacOS: Shortcuts.usedByMacOSProblem
+        }
+    }
+}
+
 /// Click to record a shortcut, then type it; Esc cancels and Delete clears it.
 private struct ShortcutRecorder: View {
     let action: ShortcutAction
     let shortcuts: Shortcuts
+    /// Set after keys that can't be a shortcut, until the next key.
+    @Binding var refusal: Refusal?
 
     @State private var monitor: Any?
-    /// Shown in the button after a key without enough modifiers, until the next key.
-    @State private var hint: String?
 
     private var isRecording: Bool { shortcuts.recording == action }
 
@@ -308,7 +334,7 @@ private struct ShortcutRecorder: View {
                     .accessibilityLabel(problem)
             }
             Button { isRecording ? stop() : start() } label: {
-                Text(isRecording ? hint ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
+                Text(isRecording ? refusal?.short ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
                     .foregroundStyle(isRecording || shortcuts.combo(for: action) == nil ? .secondary : .primary)
                     .frame(minWidth: 104)
             }
@@ -332,7 +358,7 @@ private struct ShortcutRecorder: View {
 
     private func start() {
         removeMonitor()
-        hint = nil
+        refusal = nil
         shortcuts.recording = action
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
@@ -345,12 +371,12 @@ private struct ShortcutRecorder: View {
             default:
                 guard let combo = KeyCombo(event: event) else {
                     NSSound.beep()
-                    hint = KeyCombo.modifiersNeeded(keyCode: event.keyCode) == 2 ? "Add two of ⌃ ⌥ ⌘" : "Add ⌃, ⌥ or ⌘"
+                    refusal = KeyCombo.modifiersNeeded(keyCode: event.keyCode) == 2 ? .needsTwoModifiers : .needsOneModifier
                     break
                 }
                 guard !combo.usedByMacOS else {
                     NSSound.beep()
-                    hint = "Used by macOS"
+                    refusal = .usedByMacOS
                     break
                 }
                 shortcuts.set(combo, for: action)
