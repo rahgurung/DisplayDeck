@@ -13,6 +13,7 @@ patch releases (e.g. 1.1.1) fall back to the list of commits since the previous 
 ### Fixed
 - **The MacBook slider keeps up.** Its brightness slider in the menu now follows the Mac's own brightness keys and auto-brightness, instead of showing the level from when DisplayDeck started.
 
+## 1.4
 
 ### New
 - **Monitors follow your MacBook's brightness.** Turn on *Settings → Displays → Monitors follow the built-in display* and your monitors change with the built-in screen, auto-brightness included. Move a monitor's slider once to keep it brighter or dimmer, and it keeps that balance across the whole range. Off by default.
