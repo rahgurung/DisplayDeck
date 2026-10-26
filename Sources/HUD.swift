@@ -73,7 +73,7 @@ private struct HUDView: View {
                 } else if let caption = model.caption {
                     Text(caption)
                         .font(.system(size: 13, weight: .medium))
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .truncationMode(.middle)
                 }
             }

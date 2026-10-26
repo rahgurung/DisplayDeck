@@ -6,6 +6,9 @@ struct MenuView: View {
     let manager: DisplayManager
     let openSettings: () -> Void
 
+    /// Keeps the built-in display's slider in step with macOS (its keys, auto-brightness) while the menu is open.
+    @State private var brightnessRefresh: Timer?
+
     var body: some View {
         VStack(spacing: 8) {
             ForEach(manager.displays) { display in
@@ -40,8 +43,16 @@ struct MenuView: View {
         .padding(10)
         .frame(width: 340)
         .onAppear {
-            manager.displays.forEach { $0.refreshInput() }
+            manager.displays.forEach { $0.refreshInput(); $0.refreshBrightness() }
+            brightnessRefresh?.invalidate()
+            brightnessRefresh = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [manager] _ in
+                manager.displays.forEach { $0.refreshBrightness() }
+            }
             Telemetry.send("Menu.opened")
+        }
+        .onDisappear {
+            brightnessRefresh?.invalidate()
+            brightnessRefresh = nil
         }
     }
 }

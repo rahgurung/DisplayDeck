@@ -103,6 +103,10 @@ final class MediaKeys {
         let isBrightness = keyCode == Self.keyBrightnessUp || keyCode == Self.keyBrightnessDown
         let isVolume = keyCode == Self.keyVolumeUp || keyCode == Self.keyVolumeDown || keyCode == Self.keyMute
         let all = controlsAllDisplays != ns.modifierFlags.contains(.control)
+        // macOS changes the built-in display itself when the key is passed on; read its new level back for the slider.
+        if isBrightness && isDown {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [manager] in manager.displays.forEach { $0.refreshBrightness() } }
+        }
 
         if isBrightness && brightnessEnabled {
             let targets = all ? manager.displays : manager.displaysUnderCursor()
