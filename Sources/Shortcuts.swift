@@ -285,11 +285,12 @@ final class Shortcuts {
     }
 
     private func stepContrast(_ delta: Double) {
-        var targets = targets.filter { $0.contrast != nil }
-        // Only monitors that report contrast over DDC have it (never the built-in display), so over one without it, use
-        // every monitor that has it rather than doing nothing.
-        if targets.isEmpty { targets = manager.displays.filter { $0.contrast != nil } }
-        guard !targets.isEmpty else { return }
+        // Only monitors that report contrast over DDC have it, never the built-in display. Over one without it, say so
+        // rather than changing a monitor the pointer isn't on.
+        let targets = targets.filter { $0.contrast != nil }
+        guard !targets.isEmpty else {
+            return HUD.shared.show(symbol: "circle.lefthalf.filled", value: nil, caption: "No contrast on this display")
+        }
         for display in targets { display.setContrast((display.contrast ?? 0) + delta) }
         HUD.shared.show(symbol: "circle.lefthalf.filled", value: targets[0].contrast ?? 0,
                         caption: targets.count > 1 ? "All displays" : nil)
@@ -297,11 +298,12 @@ final class Shortcuts {
 
     /// - Parameter delta: the step, or nil to mute (or unmute to half volume).
     private func stepVolume(_ delta: Double?) {
-        var targets = targets.filter { $0.volume != nil }
-        // These only control monitor speakers, so over a display without any (like the built-in one), use every
-        // monitor that has them rather than doing nothing.
-        if targets.isEmpty { targets = manager.displays.filter { $0.volume != nil } }
-        guard !targets.isEmpty else { return }
+        // These only control monitor speakers. Over a display without any (like the built-in one), say so rather than
+        // changing a monitor the pointer isn't on.
+        let targets = targets.filter { $0.volume != nil }
+        guard !targets.isEmpty else {
+            return HUD.shared.show(symbol: "speaker.slash.fill", value: nil, caption: "No speakers on this display")
+        }
         for display in targets {
             let current = display.volume ?? 0
             display.setVolume(delta.map { current + $0 } ?? (current > 0 ? 0 : 0.5))
