@@ -7,7 +7,7 @@ struct DisplayDeckApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(manager: delegate.manager) { SettingsWindow.shared.show(manager: delegate.manager, keys: delegate.keys) }
+            MenuView(manager: delegate.manager) { SettingsWindow.shared.show(manager: delegate.manager, keys: delegate.keys, shortcuts: delegate.shortcuts) }
         } label: {
             Image(nsImage: MenuBarIcon.image)
         }
@@ -18,14 +18,16 @@ struct DisplayDeckApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let manager = DisplayManager()
     lazy var keys = MediaKeys(manager: manager)
+    lazy var shortcuts = Shortcuts(manager: manager)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ReleaseApp.pause()
         quitOnSIGTERM()
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
+        shortcuts.start()
         _ = Updater.shared  // starts scheduled update checks in release builds
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
-        if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(manager: manager, keys: keys) }
+        if showWindow && !launchedAsLoginItem { SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts) }
 
         Telemetry.send("TelemetryDeck.Session.started")
         Telemetry.send("App.launched", payload: [
@@ -35,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "volumeKeys": "\(keys.volumeEnabled)",
             "keysControlAllDisplays": "\(keys.controlsAllDisplays)",
             "followBuiltinBrightness": "\(DisplayManager.followsBuiltin)",
+            "shortcuts": "\(shortcuts.combos.count)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [manager] in
@@ -52,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opening the app again while it's running (Finder, Spotlight, Dock) brings up the settings window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        SettingsWindow.shared.show(manager: manager, keys: keys)
+        SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts)
         return true
     }
 
@@ -80,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// The app's name as macOS shows it: "DisplayDeck Dev" for development builds, so they're easy to tell from the release.
+let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "DisplayDeck"
+
 /// Development builds are a separate app ("DisplayDeck Dev", `….dev`) that can be installed next to the release. Two
 /// copies talking DDC (or both following the built-in display) fight each other, so while a development build runs,
 /// the release is quit, and it's opened again when the development build quits.
@@ -98,6 +104,6 @@ private enum ReleaseApp {
     static func resume() {
         guard let pausedURL else { return }
         // `open` rather than NSWorkspace: this process exits right after, which can drop NSWorkspace's request.
-        try? Process.run(URL(fileURLWithPath: "/usr/bin/open"), arguments: ["-g", pausedURL.path])
+        _ = try? Process.run(URL(fileURLWithPath: "/usr/bin/open"), arguments: ["-g", pausedURL.path])
     }
 }

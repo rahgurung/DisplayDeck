@@ -14,6 +14,7 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 | `Sources/MenuView.swift` | The menu bar panel (one card per display). |
 | `Sources/SettingsWindow.swift` | Settings, as tabs (segmented control). |
 | `Sources/MediaKeys.swift` | Brightness/volume key event tap (needs Accessibility). |
+| `Sources/Shortcuts.swift` | Custom global shortcuts via Carbon `RegisterEventHotKey` (no Accessibility needed), stored as JSON under `shortcuts`. |
 | `Sources/Updater.swift` | Sparkle; only active when the build has a feed URL. |
 | `docs/` | Website: `index.html`, `compare.html`, generated `releases.json` / `appcast.xml`. |
 | `CHANGELOG.md` | Release notes; the Release workflow publishes the section for the version. |

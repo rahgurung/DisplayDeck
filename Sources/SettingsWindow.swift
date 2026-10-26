@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import Combine
 import ServiceManagement
 import SwiftUI
@@ -10,11 +11,11 @@ final class SettingsWindow {
 
     private var window: NSWindow?
 
-    func show(manager: DisplayManager, keys: MediaKeys) {
+    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts) {
         if window == nil {
-            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys))
+            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts))
             let window = NSWindow(contentViewController: controller)
-            window.title = "DisplayDeck"
+            window.title = appName
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
@@ -32,7 +33,7 @@ final class SettingsWindow {
 }
 
 private enum SettingsTab: String {
-    case general, displays, keyboard, updates
+    case general, displays, keyboard, shortcuts, updates
 
     var title: String { rawValue.capitalized }
 }
@@ -40,6 +41,7 @@ private enum SettingsTab: String {
 private struct SettingsView: View {
     let manager: DisplayManager
     let keys: MediaKeys
+    let shortcuts: Shortcuts
 
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
@@ -55,8 +57,6 @@ private struct SettingsView: View {
 
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-    /// "DisplayDeck Dev" for development builds, so they're easy to tell from the release.
-    private let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "DisplayDeck"
 
     var body: some View {
         VStack(spacing: 16) {
@@ -64,7 +64,7 @@ private struct SettingsView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 64, height: 64)
-                Text(name)
+                Text(appName)
                     .font(.title2.bold())
                 Text("Version \(version)")
                     .font(.caption)
@@ -89,6 +89,7 @@ private struct SettingsView: View {
                 case .general: generalTab
                 case .displays: displaysTab
                 case .keyboard: keyboardTab
+                case .shortcuts: shortcutsTab
                 case .updates: updatesTab
                 }
             }
@@ -100,7 +101,7 @@ private struct SettingsView: View {
                 Link("Source on GitHub", destination: URL(string: "https://github.com/rahgurung/DisplayDeck")!)
                     .font(.callout)
                 Spacer()
-                Button("Quit DisplayDeck") { NSApp.terminate(nil) }
+                Button("Quit \(appName)") { NSApp.terminate(nil) }
             }
         }
         .padding(.horizontal, 24)
@@ -114,7 +115,8 @@ private struct SettingsView: View {
 
     /// Updates only exist in release builds, which carry a feed URL.
     private var tabs: [SettingsTab] {
-        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .updates] : [.general, .displays, .keyboard]
+        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .shortcuts, .updates]
+            : [.general, .displays, .keyboard, .shortcuts]
     }
 
     private var generalTab: some View {
@@ -187,6 +189,29 @@ private struct SettingsView: View {
             : "Otherwise the display under your pointer. Hold ⌃ Control to do the other for one press."
     }
 
+    private var shortcutsTab: some View {
+        SettingsPage {
+            Text("Shortcuts work on any keyboard and in every app, without Accessibility access. Brightness and volume change the same displays as the keys (see Keyboard). System shortcuts like ⌘Space can’t be used.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(ShortcutAction.levels, id: \.self) { action in
+                ShortcutRow(title: action.title, action: action, shortcuts: shortcuts)
+            }
+            .onAppear { shortcuts.refresh() }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in shortcuts.refresh() }
+            ForEach(manager.displays.filter { $0.source == .ddc && !$0.inputs.isEmpty }) { display in
+                Divider()
+                Text("\(display.name) inputs")
+                    .font(.callout.weight(.medium))
+                ForEach(display.inputs) { input in
+                    ShortcutRow(title: display.label(for: input),
+                                action: .input(monitor: display.monitorKey, value: input.value), shortcuts: shortcuts)
+                }
+            }
+        }
+    }
+
     private var updatesTab: some View {
         SettingsPage {
             SwitchRow(title: "Automatically check for updates",
@@ -237,6 +262,136 @@ private struct SwitchRow: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+}
+
+private struct ShortcutRow: View {
+    let title: String
+    let action: ShortcutAction
+    let shortcuts: Shortcuts
+
+    @State private var refusal: Refusal?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                Spacer()
+                ShortcutRecorder(action: action, shortcuts: shortcuts, refusal: $refusal)
+            }
+            // Spelled out rather than in a tooltip, which takes a while to appear: why the keys just typed were refused,
+            // or why the saved shortcut won't run.
+            let recording = shortcuts.recording == action
+            if let message = recording ? refusal?.detail : shortcuts.problems[action.id] {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// Why the recorder refused the keys just typed: shown briefly in its button and in full under the row.
+private enum Refusal {
+    case needsTwoModifiers, usedByMacOS
+
+    var short: String {
+        switch self {
+        case .needsTwoModifiers: "Add two of ⌃ ⌥ ⌘"
+        case .usedByMacOS: "Used by macOS"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .needsTwoModifiers:
+            "Shortcuts need two of ⌃ ⌥ ⌘ (function keys don’t), so they don’t take keys that other apps use, like ⌘C or ⌥←."
+        case .usedByMacOS: Shortcuts.usedByMacOSProblem
+        }
+    }
+}
+
+/// Click to record a shortcut, then type it; Esc cancels and Delete clears it.
+private struct ShortcutRecorder: View {
+    let action: ShortcutAction
+    let shortcuts: Shortcuts
+    /// Set after keys that can't be a shortcut, until the next key.
+    @Binding var refusal: Refusal?
+
+    @State private var monitor: Any?
+
+    private var isRecording: Bool { shortcuts.recording == action }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if let problem = shortcuts.problems[action.id], !isRecording {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help(problem)
+                    .accessibilityLabel(problem)
+            }
+            Button { isRecording ? stop() : start() } label: {
+                Text(isRecording ? refusal?.short ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
+                    .foregroundStyle(isRecording || shortcuts.combo(for: action) == nil ? .secondary : .primary)
+                    .frame(minWidth: 104)
+            }
+            .controlSize(.small)
+            Button { shortcuts.set(nil, for: action) } label: {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.tertiary)
+            .help("Clear")
+            // Kept in the layout when there's nothing to clear, so the shortcut buttons line up.
+            .opacity(shortcuts.combo(for: action) == nil || isRecording ? 0 : 1)
+            .disabled(shortcuts.combo(for: action) == nil || isRecording)
+        }
+        .onDisappear { stop() }
+        // Also when a system shortcut like ⌘Space opens something else.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
+        // Another recorder was clicked: this one's key monitor goes, or it would outlive the recording.
+        .onChange(of: isRecording) { _, recording in if !recording { removeMonitor() } }
+    }
+
+    private func start() {
+        removeMonitor()
+        refusal = nil
+        shortcuts.recording = action
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            switch Int(event.keyCode) {
+            case kVK_Escape:
+                stop()
+            case kVK_Delete where modifiers.isEmpty:
+                shortcuts.set(nil, for: action)
+                stop()
+            default:
+                guard let combo = KeyCombo(event: event) else {
+                    NSSound.beep()
+                    refusal = .needsTwoModifiers
+                    break
+                }
+                guard !combo.usedByMacOS else {
+                    NSSound.beep()
+                    refusal = .usedByMacOS
+                    break
+                }
+                shortcuts.set(combo, for: action)
+                stop()
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        removeMonitor()
+        if isRecording { shortcuts.recording = nil }
+    }
+
+    private func removeMonitor() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 

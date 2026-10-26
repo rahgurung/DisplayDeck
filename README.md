@@ -33,6 +33,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 |---|---|
 | ☀️ **Real brightness** | Changes the monitor's own backlight over DDC/CI rather than drawing a dark overlay, so blacks stay black. |
 | ⌨️ **Brightness keys that work** | Your Mac's brightness keys control the display under your pointer, or every display at once (*Settings → Keyboard*; hold ⌃ Control to switch for one press), with a clean on-screen indicator. |
+| ⌘ **Custom shortcuts** | Your own shortcuts for brightness, volume, mute and switching a monitor's input, on any keyboard (*Settings → Shortcuts*). No Accessibility access needed. |
 | 🔌 **Input switching** | Switch a monitor between HDMI, DisplayPort and USB-C from its card, using the inputs the monitor reports. Rename any input, e.g. "Work laptop". |
 | 🔆 **Follow the built-in display** | Optional: monitors follow your MacBook's brightness, auto-brightness included. Set a monitor brighter or dimmer once and it keeps that balance across the whole range. Off by default; turn it on in *Settings → Displays*. |
 | 🔊 **Monitor speakers** | Volume for speakers built into your monitor, from a slider or your volume keys. |
@@ -132,6 +133,7 @@ Sources/
   DisplayControl.swift  Apple brightness and software (gamma) dimming
   DDC.swift             DDC/CI over IOAVService (Apple Silicon)
   MediaKeys.swift       Brightness / volume key interception
+  Shortcuts.swift       Custom global shortcuts (Carbon hot keys)
   HUD.swift             On-screen level indicator
   SettingsWindow.swift  Settings window
   MenuBarIcon.swift     Menu bar template glyph

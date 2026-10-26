@@ -11,7 +11,7 @@ final class HUD {
 
     @Observable final class Model {
         var symbol = "sun.max.fill"
-        var value = 0.5
+        var value: Double? = 0.5
         var caption: String?
     }
 
@@ -26,8 +26,10 @@ final class HUD {
         panel.contentView = NSHostingView(rootView: HUDView(model: model))
     }
 
-    /// - Parameter caption: shown above the bar, e.g. "All displays" when a key changed more than one display.
-    func show(symbol: String, value: Double, caption: String? = nil) {
+    /// - Parameter value: the level shown in the bar; nil for no bar, e.g. when a shortcut switched an input.
+    /// - Parameter caption: shown above the bar, e.g. "All displays" when a key changed more than one display, or on its
+    ///   own without a value.
+    func show(symbol: String, value: Double?, caption: String? = nil) {
         model.symbol = symbol
         model.value = value
         model.caption = caption
@@ -60,17 +62,24 @@ private struct HUDView: View {
                 .font(.system(size: 18, weight: .semibold))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
-                if let caption = model.caption {
+                if let value = model.value {
+                    if let caption = model.caption {
+                        Text(caption)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: value)
+                        .progressViewStyle(.linear)
+                } else if let caption = model.caption {
                     Text(caption)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-                ProgressView(value: model.value)
-                    .progressViewStyle(.linear)
             }
         }
         .padding(.horizontal, 18)
-        .frame(width: 220, height: 56)
+        .frame(width: 220, height: 56, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 }

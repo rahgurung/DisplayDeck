@@ -192,7 +192,8 @@ final class Display: Identifiable {
 
     /// Identifies the monitor across reconnects. Two of the same model are told apart by serial number, except on
     /// monitors that report serial 0, which then share input names.
-    private var monitorKey: String { "\(vendor)-\(CGDisplayModelNumber(id))-\(CGDisplaySerialNumber(id))" }
+    /// Identifies this monitor across reloads and reconnections, for settings kept per monitor.
+    var monitorKey: String { "\(vendor)-\(CGDisplayModelNumber(id))-\(CGDisplaySerialNumber(id))" }
 
     private static var savedInputNames: [String: [String: String]] {
         UserDefaults.standard.dictionary(forKey: "inputNames") as? [String: [String: String]] ?? [:]

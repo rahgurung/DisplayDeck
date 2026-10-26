@@ -28,7 +28,7 @@ enum MenuBarIcon {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "DisplayDeck"
+        image.accessibilityDescription = appName
         return image
     }()
 }
