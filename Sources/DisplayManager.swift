@@ -215,6 +215,13 @@ final class Display: Identifiable {
         currentMode = DisplayModes.current(for: id)
     }
 
+    /// Reads the level back from a display macOS also changes, with its brightness keys and auto-brightness, so its
+    /// slider matches. Only the built-in display and Apple displays; the rest change only through DisplayDeck.
+    func refreshBrightness() {
+        guard source == .apple, let level = AppleBrightness.get(id).map(Double.init), abs(level - brightness) >= 0.005 else { return }
+        brightness = level
+    }
+
     /// A change the user made, from the slider or the brightness keys. While following the built-in display it also
     /// becomes the point this monitor's curve passes through.
     func setBrightness(_ value: Double) {
