@@ -143,6 +143,37 @@ struct DisplayCard: View {
     }
 }
 
+/// The brightness symbol crossed out, like SF Symbols' own slashed icons (which have no sun): the line is cut out of
+/// the sun with a gap on each side. A template image, so it's tinted like the symbols around it.
+private enum SunSlash {
+    static let image: NSImage = {
+        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        let sun = NSImage(systemSymbolName: "sun.max", accessibilityDescription: nil)?.withSymbolConfiguration(config)
+        let size = NSSize(width: 16, height: 16)
+        let image = NSImage(size: size, flipped: false) { rect in
+            if let sun {
+                sun.draw(in: NSRect(x: rect.midX - sun.size.width / 2, y: rect.midY - sun.size.height / 2,
+                                    width: sun.size.width, height: sun.size.height))
+            }
+            let line = NSBezierPath()
+            line.move(to: NSPoint(x: rect.minX + 2, y: rect.maxY - 2))
+            line.line(to: NSPoint(x: rect.maxX - 2, y: rect.minY + 2))
+            line.lineCapStyle = .round
+            // Clear a wider band first, so the sun has a gap on each side of the line.
+            NSGraphicsContext.current?.compositingOperation = .clear
+            line.lineWidth = 3.6
+            line.stroke()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.set()
+            line.lineWidth = 1.4
+            line.stroke()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+}
+
 /// Turns a display off (DDC standby, or a black picture) and on again.
 private struct PowerButton: View {
     let display: Display
@@ -150,10 +181,9 @@ private struct PowerButton: View {
 
     var body: some View {
         Button { display.isOff ? display.turnOn() : display.turnOff() } label: {
-            // A screen turned off: not the power symbol, which the footer uses for quitting, nor the moon that marks
-            // dimming below the minimum.
-            Image(systemName: "rectangle.slash")
-                .font(.system(size: 12, weight: .medium))
+            // Not the power symbol, which the footer uses for quitting, nor the moon that marks dimming below the
+            // minimum.
+            Image(nsImage: SunSlash.image)
                 .frame(width: 16, height: 22)
                 .contentShape(Rectangle())
         }
