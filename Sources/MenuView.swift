@@ -156,8 +156,9 @@ private enum SunSlash {
                                     width: sun.size.width, height: sun.size.height))
             }
             let line = NSBezierPath()
-            line.move(to: NSPoint(x: rect.minX + 2, y: rect.maxY - 2))
-            line.line(to: NSPoint(x: rect.maxX - 2, y: rect.minY + 2))
+            // Top right to bottom left (y goes up here).
+            line.move(to: NSPoint(x: rect.maxX - 2, y: rect.maxY - 2))
+            line.line(to: NSPoint(x: rect.minX + 2, y: rect.minY + 2))
             line.lineCapStyle = .round
             // Clear a wider band first, so the sun has a gap on each side of the line.
             NSGraphicsContext.current?.compositingOperation = .clear
