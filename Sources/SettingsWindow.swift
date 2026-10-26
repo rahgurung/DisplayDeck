@@ -271,10 +271,19 @@ private struct ShortcutRow: View {
     let shortcuts: Shortcuts
 
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            ShortcutRecorder(action: action, shortcuts: shortcuts)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                Spacer()
+                ShortcutRecorder(action: action, shortcuts: shortcuts)
+            }
+            // Spelled out rather than in a tooltip, which takes a while to appear.
+            if let problem = shortcuts.problems[action.id], shortcuts.recording != action {
+                Text(problem)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -296,6 +305,7 @@ private struct ShortcutRecorder: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .help(problem)
+                    .accessibilityLabel(problem)
             }
             Button { isRecording ? stop() : start() } label: {
                 Text(isRecording ? hint ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")

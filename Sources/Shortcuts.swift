@@ -133,7 +133,7 @@ final class Shortcuts {
     @ObservationIgnored private var handler: EventHandlerRef?
     @ObservationIgnored private var repeatTimer: Timer?
 
-    static let usedByMacOSProblem = "macOS uses this shortcut (System Settings → Keyboard → Keyboard Shortcuts)."
+    static let usedByMacOSProblem = "macOS uses this shortcut, so it won’t work here. Pick another, or change macOS’s in System Settings → Keyboard → Keyboard Shortcuts."
     private static let step = 1.0 / 16.0
     private static let defaultsKey = "shortcuts"
     private static let signature = OSType(0x4444_4b53)  // "DDKS"
@@ -181,7 +181,7 @@ final class Shortcuts {
                 refs.append(ref)
                 actions[hotKeyID.id] = action
             } else {
-                problems[id] = "macOS couldn’t set this shortcut."
+                problems[id] = "macOS couldn’t set this shortcut. Pick another."
             }
         }
         if problems != self.problems { self.problems = problems }
