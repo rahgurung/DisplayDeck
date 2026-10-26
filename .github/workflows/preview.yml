@@ -1,0 +1,109 @@
+name: Website preview
+
+# Deploys docs/ from each pull request that changes the website to Cloudflare Pages, as a preview at
+# https://pr-<number>.displaydeck.pages.dev (the subdomain is Cloudflare's), and comments the link on the pull
+# request. The real site stays on GitHub Pages (pages.yml) and still only deploys with releases. Previews never deploy to the Cloudflare project's
+# production branch, so displaydeck.pages.dev itself stays empty.
+#
+# Needs the CLOUDFLARE_API_TOKEN secret (a token with "Cloudflare Pages: Edit") and the CLOUDFLARE_ACCOUNT_ID
+# variable. Pull requests from forks get neither, so they're skipped.
+on:
+  pull_request:
+    paths:
+      - docs/**
+      - Packaging/site-data.py
+      - .github/workflows/preview.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: displaydeck
+      BRANCH: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Check setup
+        id: setup
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -n "$TOKEN" && -n "$ACCOUNT" ]]; then echo "ready=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::Website previews need the CLOUDFLARE_API_TOKEN secret and CLOUDFLARE_ACCOUNT_ID variable; skipping."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.setup.outputs.ready
+
+      - name: Write releases.json and appcast.xml
+        if: steps.setup.outputs.ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I Packaging/site-data.py "$GITHUB_REPOSITORY" docs
+
+      # Previews are public, so keep search engines to the real site.
+      - name: Keep previews out of search results
+        if: steps.setup.outputs.ready
+        run: |
+          printf '/*\n  X-Robots-Tag: noindex\n' > docs/_headers
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: steps.setup.outputs.ready
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          # Creates the project on the first run; later runs find it already there.
+          npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main 2>/dev/null || true
+          npx --yes wrangler@3 pages deploy docs --project-name="$PROJECT" --branch="$BRANCH" --commit-dirty=true | tee deploy.log
+          # The branch's stable link, e.g. https://pr-20.displaydeck.pages.dev. The project's subdomain can differ from
+          # its name if that one was taken, so take it from the output, falling back to this deployment's own link.
+          URL=$(grep -oE "https://$BRANCH\.[a-z0-9-]+\.pages\.dev" deploy.log | head -1)
+          URL=${URL:-$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' deploy.log | head -1)}
+          [[ -n "$URL" ]] || { echo "::error::No preview link in the deploy output"; exit 1; }
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment the link
+        if: steps.setup.outputs.ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          # The pull request's own latest commit; GITHUB_SHA is GitHub's temporary merge commit.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MARKER='<!-- website-preview -->'
+          BODY="$MARKER
+          **Website preview:** $URL ([compare page]($URL/compare))
+
+          Built from ${HEAD_SHA:0:7}, with release data as of this run. Updates with every push to this pull request."
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -1)
+          if [[ -n "$ID" ]]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ID" -f body="$BODY" > /dev/null
+          else
+            gh pr comment "$NUMBER" --body "$BODY"
+          fi
+          echo "Preview: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      # A row in the pull request's checks whose Details link opens the preview itself, not this run's log.
+      - name: Link it from the checks
+        if: steps.setup.outputs.ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" -f state=success -f context="Website preview" \
+            -f description="Deployed: open Details to see it" -f target_url="$URL" > /dev/null
