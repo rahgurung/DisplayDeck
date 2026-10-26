@@ -77,16 +77,18 @@ struct KeyCombo: Codable, Equatable {
 
 /// Something a shortcut does. Stored by `id`, e.g. "brightnessUp" or "input:2513-10052-1:19".
 enum ShortcutAction: Hashable {
-    case brightnessUp, brightnessDown, volumeUp, volumeDown, mute
+    case brightnessUp, brightnessDown, contrastUp, contrastDown, volumeUp, volumeDown, mute
     /// Switches the monitor with this `Display.monitorKey` to the input with this VCP 0x60 value.
     case input(monitor: String, value: UInt8)
 
-    static let levels: [ShortcutAction] = [.brightnessUp, .brightnessDown, .volumeUp, .volumeDown, .mute]
+    static let levels: [ShortcutAction] = [.brightnessUp, .brightnessDown, .contrastUp, .contrastDown, .volumeUp, .volumeDown, .mute]
 
     var id: String {
         switch self {
         case .brightnessUp: "brightnessUp"
         case .brightnessDown: "brightnessDown"
+        case .contrastUp: "contrastUp"
+        case .contrastDown: "contrastDown"
         case .volumeUp: "volumeUp"
         case .volumeDown: "volumeDown"
         case .mute: "mute"
@@ -105,6 +107,8 @@ enum ShortcutAction: Hashable {
         switch self {
         case .brightnessUp: "Brightness up"
         case .brightnessDown: "Brightness down"
+        case .contrastUp: "Contrast up"
+        case .contrastDown: "Contrast down"
         case .volumeUp: "Volume up"
         case .volumeDown: "Volume down"
         case .mute: "Mute"
@@ -112,7 +116,7 @@ enum ShortcutAction: Hashable {
         }
     }
 
-    /// Brightness and volume repeat while the shortcut is held, like the keys they stand in for.
+    /// Brightness, contrast and volume repeat while the shortcut is held, like the keys they stand in for.
     var repeats: Bool { self != .mute && !isInput }
 
     private var isInput: Bool { if case .input = self { true } else { false } }
@@ -252,6 +256,8 @@ final class Shortcuts {
         switch action {
         case .brightnessUp: stepBrightness(Self.step)
         case .brightnessDown: stepBrightness(-Self.step)
+        case .contrastUp: stepContrast(Self.step)
+        case .contrastDown: stepContrast(-Self.step)
         case .volumeUp: stepVolume(Self.step)
         case .volumeDown: stepVolume(-Self.step)
         case .mute: stepVolume(nil)
@@ -276,6 +282,17 @@ final class Shortcuts {
         }
         HUD.shared.show(symbol: "sun.max.fill", value: targets[0].brightness,
                         caption: targets.count + followers > 1 ? "All displays" : nil)
+    }
+
+    private func stepContrast(_ delta: Double) {
+        var targets = targets.filter { $0.contrast != nil }
+        // Only monitors that report contrast over DDC have it (never the built-in display), so over one without it, use
+        // every monitor that has it rather than doing nothing.
+        if targets.isEmpty { targets = manager.displays.filter { $0.contrast != nil } }
+        guard !targets.isEmpty else { return }
+        for display in targets { display.setContrast((display.contrast ?? 0) + delta) }
+        HUD.shared.show(symbol: "circle.lefthalf.filled", value: targets[0].contrast ?? 0,
+                        caption: targets.count > 1 ? "All displays" : nil)
     }
 
     /// - Parameter delta: the step, or nil to mute (or unmute to half volume).

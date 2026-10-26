@@ -191,7 +191,7 @@ private struct SettingsView: View {
 
     private var shortcutsTab: some View {
         SettingsPage {
-            Text("Shortcuts work on any keyboard and in every app, without Accessibility access. Brightness and volume change the same displays as the keys (see Keyboard). System shortcuts like ⌘Space can’t be used.")
+            Text("Shortcuts work on any keyboard and in every app, without Accessibility access. Brightness, contrast and volume change the same displays as the keys (see Keyboard). System shortcuts like ⌘Space can’t be used.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
