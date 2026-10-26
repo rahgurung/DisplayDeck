@@ -15,7 +15,7 @@ final class SettingsWindow {
         if window == nil {
             let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts))
             let window = NSWindow(contentViewController: controller)
-            window.title = "DisplayDeck"
+            window.title = appName
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
@@ -57,8 +57,6 @@ private struct SettingsView: View {
 
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-    /// "DisplayDeck Dev" for development builds, so they're easy to tell from the release.
-    private let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "DisplayDeck"
 
     var body: some View {
         VStack(spacing: 16) {
@@ -66,7 +64,7 @@ private struct SettingsView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 64, height: 64)
-                Text(name)
+                Text(appName)
                     .font(.title2.bold())
                 Text("Version \(version)")
                     .font(.caption)
@@ -103,7 +101,7 @@ private struct SettingsView: View {
                 Link("Source on GitHub", destination: URL(string: "https://github.com/rahgurung/DisplayDeck")!)
                     .font(.callout)
                 Spacer()
-                Button("Quit DisplayDeck") { NSApp.terminate(nil) }
+                Button("Quit \(appName)") { NSApp.terminate(nil) }
             }
         }
         .padding(.horizontal, 24)

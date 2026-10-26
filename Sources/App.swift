@@ -83,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// The app's name as macOS shows it: "DisplayDeck Dev" for development builds, so they're easy to tell from the release.
+let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "DisplayDeck"
+
 /// Development builds are a separate app ("DisplayDeck Dev", `….dev`) that can be installed next to the release. Two
 /// copies talking DDC (or both following the built-in display) fight each other, so while a development build runs,
 /// the release is quit, and it's opened again when the development build quits.

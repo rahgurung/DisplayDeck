@@ -25,7 +25,7 @@ struct MenuView: View {
             }
 
             HStack(spacing: 2) {
-                Text("DisplayDeck")
+                Text(appName)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.leading, 6)
@@ -33,7 +33,7 @@ struct MenuView: View {
                 FooterButton(title: "Refresh displays", systemImage: "arrow.clockwise") { manager.reload() }
                 FooterButton(title: "Settings…", systemImage: "gearshape") { openSettings() }
                     .keyboardShortcut(",")
-                FooterButton(title: "Quit DisplayDeck", systemImage: "power") { NSApp.terminate(nil) }
+                FooterButton(title: "Quit \(appName)", systemImage: "power") { NSApp.terminate(nil) }
                     .keyboardShortcut("q")
             }
         }
