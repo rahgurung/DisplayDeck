@@ -21,7 +21,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 
 <br>
 
-<img src="docs/screenshot.png" width="820" alt="The DisplayDeck menu open from the menu bar, with brightness, contrast and volume sliders for a built-in and an external display">
+<img src="docs/screenshot.png" width="820" alt="The DisplayDeck menu open from the menu bar, with brightness, contrast and volume sliders and the input menu for a built-in and an external display">
 
 </div>
 

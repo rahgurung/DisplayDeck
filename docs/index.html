@@ -133,6 +133,8 @@ h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.05; letter-spacing: -0.03
 .chip svg { width: 9px; height: 9px; }
 .row { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; }
 .row svg { flex: none; width: 22px; height: 15px; color: var(--panel-muted); }
+.row-label { flex: 1; font-size: 12px; color: var(--panel-muted); }
+.row .chip svg { width: 9px; height: 9px; }
 .row output { width: 24px; text-align: right; font-size: 11px; color: var(--panel-muted); font-variant-numeric: tabular-nums; }
 input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 18px; background: transparent; margin: 0; cursor: pointer; }
 input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(var(--brand), var(--brand)) 0 / var(--fill, 50%) 100% no-repeat, var(--track); }
@@ -230,6 +232,7 @@ footer a { color: var(--muted); }
   <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19"/></g></symbol>
   <symbol id="i-keys" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h1M10.5 10h1M14.5 10h1M8 14h8" stroke-linecap="round"/></g></symbol>
   <symbol id="i-res" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></g></symbol>
+  <symbol id="i-input" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="11" rx="2"/><path d="M12 14v4M5 20h14"/></g></symbol>
   <symbol id="i-mirror" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="9" height="7" rx="1.5"/><rect x="12.5" y="11" width="9" height="7" rx="1.5"/></g></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/></g></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8l1.6 2.3 2.8-.6.6 2.8 2.3 1.6-1.3 2.5 1.3 2.5-2.3 1.6-.6 2.8-2.8-.6L12 21.2l-1.6-2.3-2.8.6-.6-2.8-2.3-1.6 1.3-2.5-1.3-2.5 2.3-1.6.6-2.8 2.8.6Z"/></g></symbol>
@@ -278,6 +281,7 @@ footer a { color: var(--muted); }
           <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="55" aria-label="External display brightness" data-hud="sun"><output>55</output></label>
           <label class="row"><svg aria-hidden="true"><use href="#i-contrast"/></svg><input type="range" value="50" aria-label="External display contrast"><output>50</output></label>
           <label class="row"><svg aria-hidden="true"><use href="#i-speaker"/></svg><input type="range" value="30" aria-label="External display volume" data-hud="speaker"><output>30</output></label>
+          <div class="row"><svg aria-hidden="true"><use href="#i-input"/></svg><span class="row-label">Input</span><span class="chip">USB-C<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
         </div>
         <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-mirror"/></svg><span>Mirror displays</span><span class="switch" aria-hidden="true"></span></div>
         <div class="p-foot"><span class="p-brand">DisplayDeck</span><svg role="img" aria-label="Refresh displays"><use href="#i-refresh"/></svg><svg role="img" aria-label="Settings"><use href="#i-gear"/></svg><svg role="img" aria-label="Quit"><use href="#i-power"/></svg></div>
