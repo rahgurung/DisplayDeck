@@ -55,6 +55,11 @@ never delete a release tag.
 **The website only deploys on a release** (or *Actions → Deploy website → Run workflow*), never on a push to main. Site
 changes merged now go live with the next release, so they can describe features that ship in it.
 
+**Website previews:** every pull request that changes `docs/` (or `Packaging/site-data.py`) is deployed by
+`.github/workflows/preview.yml` to Cloudflare Pages at `https://pr-<N>.<project>.pages.dev`, with a sticky PR comment
+linking it. Use that link to check site changes instead of only rendering locally. It needs the
+`CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable; without them (and for forks) the job skips.
+
 ## Pull requests
 
 - Branch from the latest `main` (`feature/…`, `fix/…`, `docs/…`).
