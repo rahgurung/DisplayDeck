@@ -200,6 +200,8 @@ private struct SettingsView: View {
             ForEach(ShortcutAction.levels, id: \.self) { action in
                 ShortcutRow(title: action.title, action: action, shortcuts: shortcuts)
             }
+            .onAppear { shortcuts.refresh() }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in shortcuts.refresh() }
             ForEach(manager.displays.filter { $0.source == .ddc && !$0.inputs.isEmpty }) { display in
                 Divider()
                 Text("\(display.name) inputs")
@@ -294,12 +296,11 @@ private struct ShortcutRow: View {
 
 /// Why the recorder refused the keys just typed: shown briefly in its button and in full under the row.
 private enum Refusal {
-    case needsTwoModifiers, needsOneModifier, usedByMacOS
+    case needsTwoModifiers, usedByMacOS
 
     var short: String {
         switch self {
         case .needsTwoModifiers: "Add two of ⌃ ⌥ ⌘"
-        case .needsOneModifier: "Add ⌃, ⌥ or ⌘"
         case .usedByMacOS: "Used by macOS"
         }
     }
@@ -307,8 +308,7 @@ private enum Refusal {
     var detail: String {
         switch self {
         case .needsTwoModifiers:
-            "Letters, numbers and symbols need two of ⌃ ⌥ ⌘, so the shortcut doesn’t take keys that other apps use, like ⌘C."
-        case .needsOneModifier: "This key needs ⌃, ⌥ or ⌘."
+            "Shortcuts need two of ⌃ ⌥ ⌘ (function keys don’t), so they don’t take keys that other apps use, like ⌘C or ⌥←."
         case .usedByMacOS: Shortcuts.usedByMacOSProblem
         }
     }
@@ -371,7 +371,7 @@ private struct ShortcutRecorder: View {
             default:
                 guard let combo = KeyCombo(event: event) else {
                     NSSound.beep()
-                    refusal = KeyCombo.modifiersNeeded(keyCode: event.keyCode) == 2 ? .needsTwoModifiers : .needsOneModifier
+                    refusal = .needsTwoModifiers
                     break
                 }
                 guard !combo.usedByMacOS else {

@@ -11,12 +11,9 @@ struct KeyCombo: Codable, Equatable {
     let key: String
 
     /// How many of ⌘, ⌃ and ⌥ a key needs to be a global shortcut. A global shortcut takes the keys from every app, so
-    /// a letter, number or symbol needs two: with one, it could replace ⌘C or ⌘Q everywhere, or stop ⌥E typing an
-    /// accent. Arrows and other special keys need one, and function keys none.
-    static func modifiersNeeded(keyCode: UInt16) -> Int {
-        let code = UInt32(keyCode)
-        return functionKeys[code] != nil ? 0 : specialKeys[code] != nil ? 1 : 2
-    }
+    /// any key but a function key needs two: with one, it could replace ⌘C, ⌘Q, ⌘← or ⌥← everywhere, or stop ⌥E typing
+    /// an accent.
+    static func modifiersNeeded(keyCode: UInt16) -> Int { functionKeys[UInt32(keyCode)] != nil ? 0 : 2 }
 
     /// The combination typed in the recorder, or nil without the modifiers the key needs (`modifiersNeeded`).
     init?(event: NSEvent) {
@@ -26,7 +23,7 @@ struct KeyCombo: Codable, Equatable {
         guard held >= Self.modifiersNeeded(keyCode: event.keyCode) else { return nil }
         guard let key = Self.specialKeys[code] ?? Self.functionKeys[code]
                 ?? event.charactersIgnoringModifiers?.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
-              !key.isEmpty else { return nil }
+              !key.isEmpty, key.unicodeScalars.allSatisfy(Self.isPrintable) else { return nil }
         keyCode = code
         modifiers = (flags.contains(.control) ? UInt32(controlKey) : 0) | (flags.contains(.option) ? UInt32(optionKey) : 0)
             | (flags.contains(.shift) ? UInt32(shiftKey) : 0) | (flags.contains(.command) ? UInt32(cmdKey) : 0)
@@ -37,6 +34,12 @@ struct KeyCombo: Codable, Equatable {
     var description: String {
         (modifiers & UInt32(controlKey) != 0 ? "⌃" : "") + (modifiers & UInt32(optionKey) != 0 ? "⌥" : "")
             + (modifiers & UInt32(shiftKey) != 0 ? "⇧" : "") + (modifiers & UInt32(cmdKey) != 0 ? "⌘" : "") + key
+    }
+
+    /// Keys without a name of their own here (like Help or Clear) come through as control or private-use characters,
+    /// which would show as nothing.
+    private static func isPrintable(_ scalar: Unicode.Scalar) -> Bool {
+        !CharacterSet.controlCharacters.contains(scalar) && !(0xE000...0xF8FF).contains(scalar.value)
     }
 
     func sameKeys(as other: KeyCombo) -> Bool { keyCode == other.keyCode && modifiers == other.modifiers }
@@ -60,6 +63,7 @@ struct KeyCombo: Codable, Equatable {
     private static let specialKeys: [UInt32: String] = [
         UInt32(kVK_UpArrow): "↑", UInt32(kVK_DownArrow): "↓", UInt32(kVK_LeftArrow): "←", UInt32(kVK_RightArrow): "→",
         UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥", UInt32(kVK_Space): "Space", UInt32(kVK_ForwardDelete): "⌦",
+        UInt32(kVK_Delete): "⌫",
         UInt32(kVK_Home): "↖", UInt32(kVK_End): "↘", UInt32(kVK_PageUp): "⇞", UInt32(kVK_PageDown): "⇟",
     ]
     private static let functionKeys: [UInt32: String] = [
@@ -153,6 +157,11 @@ final class Shortcuts {
 
     func combo(for action: ShortcutAction) -> KeyCombo? { combos[action.id] }
 
+    /// Checks again which shortcuts won't run, e.g. after macOS's own shortcuts were changed in System Settings.
+    func refresh() {
+        if recording == nil { register() }
+    }
+
     /// Sets or clears a shortcut. A combination already used by another action moves to this one.
     func set(_ combo: KeyCombo?, for action: ShortcutAction) {
         if let combo {
@@ -218,9 +227,14 @@ final class Shortcuts {
         perform(action)
         guard action.repeats else { return }
         stopRepeating()
-        // Like key repeat: a pause, then steady steps until the shortcut is released.
+        // Like key repeat: a pause, then steady steps until the shortcut is released. Capped at enough steps to cross
+        // the whole range, so a release macOS never delivers can't keep stepping (and sending DDC commands) forever.
+        var steps = 0
         repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
-            self?.repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in self?.perform(action) }
+            self?.repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
+                steps += 1
+                if steps > Int(1 / Self.step) { self?.stopRepeating() } else { self?.perform(action) }
+            }
         }
     }
 
