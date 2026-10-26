@@ -3,7 +3,16 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
-## 1.4
+## 1.5
+
+### New
+- **Your own keyboard shortcuts.** Set shortcuts for brightness, contrast, volume and mute, and for switching a monitor to any of its inputs, in the new *Settings → Shortcuts* tab. They work on any keyboard, including ones without Mac media keys, in every app, and don't need Accessibility access. Hold one to keep adjusting.
+- **Darker than the monitor's minimum.** Turn on *Settings → Displays → Dim monitors below their minimum*, then drag a monitor's brightness below 0 (or keep pressing brightness down) to darken it further for late nights. A moon shows when you're past the monitor's own minimum. Off by default.
+- **Turn a display off.** Turn on *Settings → Displays → Show a turn-off button on each display* for a button that puts a monitor to sleep, or blacks out a display that can't sleep, with one click. Click it again, or *Turn On*, to bring it back. DisplayDeck never turns off the last screen you can see, and wakes monitors when it quits. Off by default.
+
+### Fixed
+- **The MacBook slider keeps up.** Its brightness slider in the menu now follows the Mac's own brightness keys and auto-brightness, instead of showing the level from when DisplayDeck started.
+
 
 ### New
 - **Monitors follow your MacBook's brightness.** Turn on *Settings → Displays → Monitors follow the built-in display* and your monitors change with the built-in screen, auto-brightness included. Move a monitor's slider once to keep it brighter or dimmer, and it keeps that balance across the whole range. Off by default.
