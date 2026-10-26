@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  statuses: write
 
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
@@ -79,12 +80,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           URL: ${{ steps.deploy.outputs.url }}
           NUMBER: ${{ github.event.pull_request.number }}
+          # The pull request's own latest commit; GITHUB_SHA is GitHub's temporary merge commit.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           MARKER='<!-- website-preview -->'
           BODY="$MARKER
           **Website preview:** $URL ([compare page]($URL/compare))
 
-          Built from $GITHUB_SHA, with release data as of this run. Updates with every push to this pull request."
+          Built from ${HEAD_SHA:0:7}, with release data as of this run. Updates with every push to this pull request."
           ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate \
             --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -1)
           if [[ -n "$ID" ]]; then
@@ -93,3 +96,14 @@ jobs:
             gh pr comment "$NUMBER" --body "$BODY"
           fi
           echo "Preview: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      # A row in the pull request's checks whose Details link opens the preview itself, not this run's log.
+      - name: Link it from the checks
+        if: steps.setup.outputs.ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" -f state=success -f context="Website preview" \
+            -f description="Deployed: open Details to see it" -f target_url="$URL" > /dev/null
