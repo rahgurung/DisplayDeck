@@ -2,7 +2,8 @@ name: Website preview
 
 # Deploys docs/ from each pull request that changes the website to Cloudflare Pages, as a preview at
 # https://pr-<number>.displaydeck.pages.dev (the subdomain is Cloudflare's), and comments the link on the pull
-# request. The real site stays on GitHub Pages (pages.yml) and still only deploys with releases. Previews never deploy to the Cloudflare project's
+# request, the checks and a deployment (whose View deployment button opens it in a new tab). The real site stays on
+# GitHub Pages (pages.yml) and still only deploys with releases. Previews never deploy to the Cloudflare project's
 # production branch, so displaydeck.pages.dev itself stays empty.
 #
 # Needs the CLOUDFLARE_API_TOKEN secret (a token with "Cloudflare Pages: Edit") and the CLOUDFLARE_ACCOUNT_ID
@@ -18,6 +19,7 @@ permissions:
   contents: read
   pull-requests: write
   statuses: write
+  deployments: write
 
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
@@ -107,3 +109,21 @@ jobs:
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" -f state=success -f context="Website preview" \
             -f description="Deployed: open Details to see it" -f target_url="$URL" > /dev/null
+
+      # A deployment on the pull request's branch adds a View deployment button next to the merge box, which (unlike
+      # links in comments, whose target GitHub strips) opens the preview in a new tab. Its earlier deployments are marked
+      # inactive so only the latest shows; other pull requests' deployments are left alone.
+      - name: Record a deployment
+        if: steps.setup.outputs.ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          REF: ${{ github.head_ref }}
+        run: |
+          API="repos/$GITHUB_REPOSITORY/deployments"
+          ID=$(gh api "$API" -f ref="$REF" -f environment=website-preview -F auto_merge=false -F transient_environment=true \
+            -F 'required_contexts[]' -f description="Website preview" --jq .id)
+          gh api "$API/$ID/statuses" -f state=success -f environment_url="$URL" -F auto_inactive=false > /dev/null
+          for OLD in $(gh api "$API?environment=website-preview&ref=$REF" --paginate --jq ".[] | select(.id != $ID) | .id"); do
+            gh api "$API/$OLD/statuses" -f state=inactive > /dev/null
+          done

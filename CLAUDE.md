@@ -56,8 +56,9 @@ never delete a release tag.
 changes merged now go live with the next release, so they can describe features that ship in it.
 
 **Website previews:** every pull request that changes `docs/` (or `Packaging/site-data.py`) is deployed by
-`.github/workflows/preview.yml` to Cloudflare Pages at `https://pr-<N>.<project>.pages.dev`, with a sticky PR comment
-linking it. Use that link to check site changes instead of only rendering locally. It needs the
+`.github/workflows/preview.yml` to Cloudflare Pages at `https://pr-<N>.<project>.pages.dev`, linked from a sticky PR
+comment, a *Website preview* check and a `website-preview` deployment on the branch (its *View deployment* button is
+the only one of the three GitHub opens in a new tab; it strips `target` from comment links). Use that link to check site changes instead of only rendering locally. It needs the
 `CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable; without them (and for forks) the job skips.
 
 ## Pull requests
@@ -100,6 +101,12 @@ Instead, render the real SwiftUI views offscreen:
 - Web pages: `qlmanage -t -s 1400 -o <dir> page.html` renders the top of a page; wrap it in an `<iframe>` 390 px wide for
   phone width.
 - Offscreen capture of `TabView`'s tab bar is unreliable; open the real app for anything doubtful.
+- `docs/screenshot.png` (README) is a render of the website's hero mock (`.stage` in `docs/index.html`), not of the
+  app: update the mock to match the menu, then render it with headless Chrome from a copy of `docs/` whose page gets
+  extra CSS hiding everything but `.stage` (`visibility: hidden` on `body *`, the stage `position: fixed; left: 20px;
+  top: 18px; width: 940px`, its `.hud` hidden): `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=980,<stage height + 36>
+  --screenshot=docs/screenshot.png file://…/index.html`.
 
 ## Project board and issues
 
@@ -134,6 +141,10 @@ Instead, render the real SwiftUI views offscreen:
   the monitor stays at DDC 0 and `GammaDimmer` dims it (a quarter of normal at −0.4). `GammaDimmer` tracks each
   display's level so one can be restored without undoing others. macOS restores gamma when the app exits, even on a
   crash (verified with `kill -9`). Levels below 0 are kept per monitor across reloads; following stays within 0–1.
+- Turning a display off (button behind `showTurnOffButton`, off by default): DDC power mode (`0xD6`): 4 to sleep, 1 to wake. The BenQ reports 2 in standby, keeps
+  answering DDC, and stays in macOS's display list; waking takes a few seconds and the first request can go unanswered,
+  so `wake` retries. Monitors that don't answer `0xD6` (and the built-in display) are blacked out with gamma instead.
+  While off, every command to the display is skipped (it could wake it). The last visible display can't be turned off.
 - The maintainer's test setup: MacBook Air + BenQ EX271Q on USB-C (input `0x13`). Restore both screens' brightness
   after any test that changes them.
 - Accessibility permission is per app: the dev build shows up as *DisplayDeck Dev* and the release as *DisplayDeck*.

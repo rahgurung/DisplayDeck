@@ -63,7 +63,12 @@ final class Display: Identifiable {
             probing = ddc != nil
         }
         reloadModes()
-        probeDDC()
+        // Turned off before a reload (wake, hot-plug): a monitor in standby stays so, and is probed once it's woken.
+        if let standby = Self.turnedOff[monitorKey] {
+            isOff = true
+            if !standby { GammaDimmer.blackOut(id) }
+        }
+        if Self.turnedOff[monitorKey] != true { probeDDC() }
         inputNames = (Self.savedInputNames[monitorKey] ?? [:]).reduce(into: [:]) { names, entry in
             if let value = UInt8(entry.key) { names[value] = entry.value }
         }
@@ -98,6 +103,9 @@ final class Display: Identifiable {
                 // after connecting isn't undone by it.
                 NotificationCenter.default.post(name: Self.followNow, object: self)
             }
+        }
+        ddc.read(.powerMode) { [weak self] result in
+            DispatchQueue.main.async { self?.supportsStandby = result.map { (1...5).contains($0.current) } ?? false }
         }
         for code in [VCP.volume, .contrast] {
             ddc.read(code) { [weak self] result in
@@ -240,6 +248,8 @@ final class Display: Identifiable {
     static let followNow = Notification.Name("DisplayDeck.followNow")
 
     private func applyBrightness(_ value: Double) {
+        // A command could wake a monitor in standby, and a blacked-out display would light up again.
+        guard !isOff else { return }
         let previous = brightness
         brightness = min(1, max(minBrightness, value))
         switch source {
@@ -255,6 +265,81 @@ final class Display: Identifiable {
             Self.belowMinimum[monitorKey] = brightness < 0 ? brightness : nil
         case .gamma: GammaDimmer.set(id, brightness)
         }
+    }
+
+    // MARK: Turning off
+
+    /// Turned off from the menu: in DDC standby, or blacked out in software.
+    private(set) var isOff = false
+    /// Turning on a monitor in standby, which takes a few seconds.
+    private(set) var isWaking = false
+    /// Answers DDC power-mode requests, so turning it off puts it in standby rather than blacking it out.
+    @ObservationIgnored private var supportsStandby = false
+    /// Displays turned off, by monitor, and whether they're in standby (rather than blacked out). Kept across reloads,
+    /// which rebuild every Display.
+    private static var turnedOff: [String: Bool] = [:]
+
+    func turnOff() {
+        guard !isOff else { return }
+        let standby = source == .ddc && supportsStandby
+        if standby { ddc?.set(.powerMode, 4) } else { GammaDimmer.blackOut(id) }
+        isOff = true
+        Self.turnedOff[monitorKey] = standby
+        Telemetry.send("Display.turnedOff", payload: ["method": standby ? "standby" : "blackout"])
+    }
+
+    func turnOn() {
+        guard isOff, !isWaking else { return }
+        if Self.turnedOff.removeValue(forKey: monitorKey) == true { return wake(attempt: 1) }
+        isOff = false
+        GammaDimmer.restore(id)
+        // Dimmed in software before it was turned off: dim it again.
+        if source == .gamma || brightness < 0 { applyBrightness(brightness) }
+        NotificationCenter.default.post(name: Self.followNow, object: self)
+    }
+
+    /// Monitors take a few seconds to wake and may not answer meanwhile, so ask again until it says it's on.
+    private func wake(attempt: Int) {
+        isWaking = true
+        ddc?.set(.powerMode, 1)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.ddc?.read(.powerMode) { result in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if result?.current == 1 || attempt >= 4 { self.finishWaking() } else { self.wake(attempt: attempt + 1) }
+                }
+            }
+        }
+    }
+
+    private func finishWaking() {
+        isWaking = false
+        isOff = false
+        if probing { probeDDC() }  // Not probed while it was in standby after a reload.
+        NotificationCenter.default.post(name: Self.followNow, object: self)
+    }
+
+    /// Called when the menu opens: a monitor in standby may have been turned on with its own power button.
+    func refreshPower() {
+        guard isOff, !isWaking, Self.turnedOff[monitorKey] == true else { return }
+        ddc?.read(.powerMode) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, result?.current == 1, self.isOff, !self.isWaking else { return }
+                Self.turnedOff[self.monitorKey] = nil
+                self.finishWaking()
+            }
+        }
+    }
+
+    /// On quit, wakes a monitor in standby without waiting to hear back. Blacked-out displays are put back by macOS.
+    func turnOnBeforeQuitting() {
+        guard Self.turnedOff[monitorKey] == true, let ddc else { return }
+        // A monitor still going to sleep can ignore the first request; the test monitor needed a second.
+        ddc.set(.powerMode, 1)
+        ddc.flush()
+        Thread.sleep(forTimeInterval: 0.5)
+        ddc.set(.powerMode, 1)
+        ddc.flush()
     }
 
     // MARK: Dimming below the minimum
@@ -286,6 +371,7 @@ final class Display: Identifiable {
     /// Matches the built-in display's brightness through this monitor's curve (the same percentage until the user adjusts
     /// it). Only sends a command when the value changes, since the built-in level is checked twice a second.
     func follow(_ level: Double) {
+        guard !isOff else { return }  // Catches up once it's turned on again.
         if Self.needsPoint.remove(monitorKey) != nil { return startFollowing(level) }
         followedLevel = level
         let target = (Self.curves[monitorKey] ?? .identity).monitorLevel(for: level)
@@ -335,6 +421,7 @@ final class Display: Identifiable {
     /// the reconfiguration callback in DisplayManager then reloads the list. If the input has no signal, the monitor
     /// hunts for one that does, which can take a while, so keep reading the input back until it settles.
     func setInput(_ input: InputSource) {
+        guard !isOff else { return }
         currentInput = input
         ddc?.set(.inputSource, UInt16(input.value))
         Telemetry.send("Input.switched")
@@ -353,7 +440,7 @@ final class Display: Identifiable {
     func refreshInput() { refreshInput(attempt: inputSwitch) }
 
     private func refreshInput(attempt: Int) {
-        guard source == .ddc, !probing, !inputs.isEmpty else { return }
+        guard source == .ddc, !probing, !isOff, !inputs.isEmpty else { return }
         ddc?.read(.inputSource) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self, self.inputSwitch == attempt, let current = self.input(from: result) else { return }
@@ -366,6 +453,7 @@ final class Display: Identifiable {
     @ObservationIgnored private var inputSwitch = 0
 
     private func send(_ code: VCP, _ value: Double) {
+        guard !isOff else { return }
         let max = maxValues[code] ?? 100
         ddc?.set(code, UInt16((value * Double(max)).rounded()))
     }
@@ -543,6 +631,11 @@ final class DisplayManager {
         Mirroring.setMirrored(on)
         isMirrored = on
         scheduleReload()
+    }
+
+    /// The last display you can see can't be turned off, so the menu stays in reach.
+    func canTurnOff(_ display: Display) -> Bool {
+        displays.contains { $0 !== display && !$0.isOff }
     }
 
     /// Displays affected by a key press: the one under the mouse plus anything mirroring it.

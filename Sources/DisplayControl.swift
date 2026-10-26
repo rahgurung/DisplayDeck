@@ -35,6 +35,12 @@ enum GammaDimmer {
         CGSetDisplayTransferByFormula(id, 0, v, 1, 0, v, 1, 0, v, 1)
     }
 
+    /// Turns a display's picture fully black, for displays turned off that can't go to standby.
+    static func blackOut(_ id: CGDirectDisplayID) {
+        levels[id] = 0
+        CGSetDisplayTransferByFormula(id, 0, 0, 1, 0, 0, 1, 0, 0, 1)
+    }
+
     /// Puts one display's colours back. Restoring is all or nothing, so the others are dimmed again after.
     static func restore(_ id: CGDirectDisplayID) {
         guard levels.removeValue(forKey: id) != nil else { return }

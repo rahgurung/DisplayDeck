@@ -21,7 +21,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 
 <br>
 
-<img src="docs/screenshot.png" width="820" alt="The DisplayDeck menu open from the menu bar, with brightness, contrast and volume sliders for a built-in and an external display">
+<img src="docs/screenshot.png" width="820" alt="The DisplayDeck menu open from the menu bar, with brightness, contrast and volume sliders and the input menu for a built-in and an external display">
 
 </div>
 
@@ -40,6 +40,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 | ◐ **Contrast** | Adjust contrast on monitors that support it. |
 | 🖥️ **Resolution & refresh rate** | Switch per display in two clicks, no System Settings detour. |
 | 🪞 **Mirroring** | Toggle display mirroring straight from the menu. |
+| ⏻ **Turn a display off** | Optional: a button on each display's card puts the monitor in standby, or turns its picture black if it can't sleep. Click again to turn it back on. Off by default; turn it on in *Settings → Displays*. |
 | 🌗 **Software dimming** | Displays that can't be controlled over DDC still dim, in software. Optionally, monitors can go darker than their own minimum for late nights: drag brightness below 0 (*Settings → Displays*). |
 | 🚀 **Launch at login** | Starts quietly in the menu bar when you log in. |
 | 🔄 **Automatic updates** | Checks for new versions daily and installs them with one click, via [Sparkle](https://sparkle-project.org). |
@@ -98,7 +99,7 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 
 - App and macOS version, region
 - How many displays are connected and how each is controlled (DDC / software / Apple)
-- Which options are on, and when the menu or settings window is opened or a monitor's input is switched
+- Which options are on, and when the menu or settings window is opened, a monitor's input is switched or a display is turned off
 
 Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → Updates**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
 

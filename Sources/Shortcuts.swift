@@ -249,7 +249,8 @@ final class Shortcuts {
 
     /// The displays a brightness or volume shortcut adjusts: the one under the pointer, or all of them, as for the keys.
     private var targets: [Display] {
-        UserDefaults.standard.bool(forKey: "keysControlAllDisplays") ? manager.displays : manager.displaysUnderCursor()
+        (UserDefaults.standard.bool(forKey: "keysControlAllDisplays") ? manager.displays : manager.displaysUnderCursor())
+            .filter { !$0.isOff }
     }
 
     private func perform(_ action: ShortcutAction) {

@@ -15,6 +15,8 @@ enum VCP: UInt8 {
     case volume = 0x62
     case mute = 0x8D
     case inputSource = 0x60
+    /// 1 on, 2–4 standby or off, 5 off by its power switch. Only 1 and 4 are sent.
+    case powerMode = 0xD6
 }
 
 /// One DDC/CI connection to an external monitor. All I/O runs on one serial queue shared by every channel:
@@ -48,6 +50,11 @@ final class DDCChannel {
             lock.unlock()
             if let latest { _ = write(code, latest) }
         }
+    }
+
+    /// Waits for every queued command to be sent, e.g. before the app quits.
+    func flush() {
+        Self.queue.sync {}
     }
 
     func read(_ code: VCP, completion: @escaping ((current: UInt16, max: UInt16)?) -> Void) {
