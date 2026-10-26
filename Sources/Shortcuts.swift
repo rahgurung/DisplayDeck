@@ -280,8 +280,7 @@ final class Shortcuts {
             if display.source == .apple, let level = AppleBrightness.get(display.id) { display.brightness = Double(level) }
             display.setBrightness(display.brightness + delta)
         }
-        HUD.shared.show(symbol: "sun.max.fill", value: targets[0].brightness,
-                        caption: targets.count + followers > 1 ? "All displays" : nil)
+        HUD.shared.showBrightness(targets[0].brightness, caption: targets.count + followers > 1 ? "All displays" : nil)
     }
 
     private func stepContrast(_ delta: Double) {

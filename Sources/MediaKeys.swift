@@ -123,7 +123,7 @@ final class MediaKeys {
                 DispatchQueue.main.async {
                     for display in externals { display.setBrightness(display.brightness + delta) }
                     if let first = externals.first {
-                        HUD.shared.show(symbol: "sun.max.fill", value: first.brightness, caption: caption)
+                        HUD.shared.showBrightness(first.brightness, caption: caption)
                     }
                 }
             }

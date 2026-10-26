@@ -61,6 +61,7 @@ struct DisplayCard: View {
     let display: Display
 
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
+    @AppStorage("dimBelowMinimum") private var dimBelowMinimum = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -95,7 +96,9 @@ struct DisplayCard: View {
             }
 
             VStack(spacing: 6) {
-                SliderRow(symbol: "sun.max.fill", label: "Brightness", value: display.brightness, disabled: display.probing) {
+                // A moon below 0, where the monitor is at its minimum and DisplayDeck dims it further.
+                SliderRow(symbol: display.brightness < 0 ? "moon.fill" : "sun.max.fill", label: "Brightness", value: display.brightness,
+                          range: (dimBelowMinimum ? display.minBrightness : 0)...1, disabled: display.probing) {
                     display.setBrightness($0)
                 }
                 if let contrast = display.contrast {
@@ -291,6 +294,8 @@ struct SliderRow: View {
     let symbol: String
     let label: String
     let value: Double
+    /// Brightness can start below 0 when dimming below the monitor's minimum is on.
+    var range: ClosedRange<Double> = 0...1
     var disabled = false
     let onChange: (Double) -> Void
 
@@ -300,7 +305,7 @@ struct SliderRow: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
-            Slider(value: Binding(get: { value }, set: onChange), in: 0...1)
+            Slider(value: Binding(get: { value }, set: onChange), in: range)
                 .controlSize(.small)
                 .accessibilityLabel(label)
             Text("\(Int((value * 100).rounded()))")

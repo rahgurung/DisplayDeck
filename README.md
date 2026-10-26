@@ -40,7 +40,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 | ◐ **Contrast** | Adjust contrast on monitors that support it. |
 | 🖥️ **Resolution & refresh rate** | Switch per display in two clicks, no System Settings detour. |
 | 🪞 **Mirroring** | Toggle display mirroring straight from the menu. |
-| 🌗 **Software dimming fallback** | Displays that can't be controlled over DDC still dim, in software. |
+| 🌗 **Software dimming** | Displays that can't be controlled over DDC still dim, in software. Optionally, monitors can go darker than their own minimum for late nights: drag brightness below 0 (*Settings → Displays*). |
 | 🚀 **Launch at login** | Starts quietly in the menu bar when you log in. |
 | 🔄 **Automatic updates** | Checks for new versions daily and installs them with one click, via [Sparkle](https://sparkle-project.org). |
 

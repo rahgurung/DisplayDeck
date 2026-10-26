@@ -51,6 +51,7 @@ private struct SettingsView: View {
     @AppStorage("shareAnalytics") private var shareAnalytics = true
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @AppStorage("followBuiltinBrightness") private var followBuiltin = false
+    @AppStorage("dimBelowMinimum") private var dimBelowMinimum = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
     @State private var autoUpdate = Updater.shared.automaticallyChecksForUpdates
@@ -147,6 +148,11 @@ private struct SettingsView: View {
                       detail: "Including auto-brightness. Move a monitor’s slider to keep it brighter or dimmer.",
                       isOn: $followBuiltin)
                 .onChange(of: followBuiltin) { _, _ in manager.updateBrightnessSync(learnCurves: true) }
+            Divider()
+            SwitchRow(title: "Dim monitors below their minimum",
+                      detail: "Drag a monitor’s brightness below 0, or keep pressing brightness down, to darken it further in software.",
+                      isOn: $dimBelowMinimum)
+                .onChange(of: dimBelowMinimum) { _, on in if !on { manager.displays.forEach { $0.clampBrightness() } } }
             Divider()
             SwitchRow(title: "Show refresh rate as a separate menu",
                       detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)

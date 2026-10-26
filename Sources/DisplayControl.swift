@@ -21,14 +21,29 @@ enum AppleBrightness {
     }
 }
 
-/// Software dimming through the gamma table, for displays that don't speak DDC.
+/// Software dimming through the gamma table: for displays that don't speak DDC, and for monitors dimmed below their
+/// own minimum. macOS puts every display's colours back when the app quits, even if it crashes.
 enum GammaDimmer {
+    /// The displays dimmed now, so one can be put back without undoing the others.
+    private static var levels: [CGDirectDisplayID: Float] = [:]
+
+    static var isActive: Bool { !levels.isEmpty }
+
     static func set(_ id: CGDirectDisplayID, _ value: Double) {
         let v = Float(max(0.15, min(1, value)))
+        levels[id] = v
         CGSetDisplayTransferByFormula(id, 0, v, 1, 0, v, 1, 0, v, 1)
     }
 
+    /// Puts one display's colours back. Restoring is all or nothing, so the others are dimmed again after.
+    static func restore(_ id: CGDirectDisplayID) {
+        guard levels.removeValue(forKey: id) != nil else { return }
+        CGDisplayRestoreColorSyncSettings()
+        for (other, v) in levels { CGSetDisplayTransferByFormula(other, 0, v, 1, 0, v, 1, 0, v, 1) }
+    }
+
     static func restoreAll() {
+        levels = [:]
         CGDisplayRestoreColorSyncSettings()
     }
 }

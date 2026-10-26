@@ -26,6 +26,12 @@ final class HUD {
         panel.contentView = NSHostingView(rootView: HUDView(model: model))
     }
 
+    /// The brightness indicator. Below 0, dimmed past a monitor's own minimum, the bar is empty and the caption says so.
+    func showBrightness(_ level: Double, caption: String? = nil) {
+        show(symbol: level < 0 ? "moon.fill" : "sun.max.fill", value: max(0, level),
+             caption: level < 0 ? [caption, "Below minimum"].compactMap { $0 }.joined(separator: " · ") : caption)
+    }
+
     /// - Parameter value: the level shown in the bar; nil for no bar, e.g. when a shortcut switched an input.
     /// - Parameter caption: shown above the bar, e.g. "All displays" when a key changed more than one display, or on its
     ///   own without a value.
