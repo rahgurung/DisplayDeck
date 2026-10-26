@@ -85,6 +85,10 @@ final class Display: Identifiable {
                 if let result {
                     self.maxValues[.brightness] = result.max
                     self.brightness = Double(result.current) / Double(result.max)
+                    // Still at its minimum after a wake or reconnect: carry on dimming below it as before.
+                    if self.brightness == 0, Self.dimsBelowMinimum, let level = Self.belowMinimum[self.monitorKey] {
+                        self.applyBrightness(level)
+                    }
                     self.probeInputs()
                 } else {
                     self.source = .gamma  // Monitor didn't answer; fall back to software dimming.
@@ -236,13 +240,40 @@ final class Display: Identifiable {
     static let followNow = Notification.Name("DisplayDeck.followNow")
 
     private func applyBrightness(_ value: Double) {
-        brightness = min(1, max(0, value))
+        let previous = brightness
+        brightness = min(1, max(minBrightness, value))
         switch source {
         case .apple: AppleBrightness.set(id, Float(brightness))
-        case .ddc: send(.brightness, brightness)
+        case .ddc:
+            // Below 0 the monitor stays at its minimum and the rest is software dimming, so there's nothing new to send.
+            if brightness > 0 || previous > 0 { send(.brightness, max(0, brightness)) }
+            if brightness < 0 {
+                GammaDimmer.set(id, 1 + brightness / Self.belowMinimumRange * 0.75)  // A quarter of normal at the bottom.
+            } else {
+                GammaDimmer.restore(id)
+            }
+            Self.belowMinimum[monitorKey] = brightness < 0 ? brightness : nil
         case .gamma: GammaDimmer.set(id, brightness)
         }
     }
+
+    // MARK: Dimming below the minimum
+
+    /// How far below 0 a monitor's brightness goes when dimming below its minimum is on: the slider then starts at −40.
+    static let belowMinimumRange = 0.4
+    static var dimsBelowMinimum: Bool { UserDefaults.standard.bool(forKey: "dimBelowMinimum") }
+
+    /// Below 0 only for monitors controlled over DDC: displays without it are dimmed in software anyway, and Apple
+    /// displays go dark enough by themselves.
+    var minBrightness: Double { source == .ddc && Self.dimsBelowMinimum ? -Self.belowMinimumRange : 0 }
+
+    /// Back within range after dimming below the minimum is turned off.
+    func clampBrightness() {
+        if brightness < minBrightness { applyBrightness(minBrightness) }
+    }
+
+    /// Levels below the minimum, by monitor, so a reload (which rebuilds every Display) keeps them.
+    private static var belowMinimum: [String: Double] = [:]
 
     // MARK: Following the built-in display
 
@@ -277,6 +308,8 @@ final class Display: Identifiable {
     }
 
     private func saveCurve(_ curve: FollowCurve) {
+        // Following stays within the monitor's own range; dimming below it is only by hand.
+        let curve = FollowCurve(builtin: curve.builtin, monitor: max(0, curve.monitor))
         Self.curves[monitorKey] = curve.isIdentity ? nil : curve
         UserDefaults.standard.set(Self.curves.mapValues { [$0.builtin, $0.monitor] }, forKey: "brightnessCurves")
     }

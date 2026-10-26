@@ -130,6 +130,10 @@ Instead, render the real SwiftUI views offscreen:
 - Monitors auto-switch inputs when the chosen one has no signal; the app reads the input back rather than assuming.
 - Following the built-in display: a curve through one point per monitor (`FollowCurve`), polled twice a second on a
   common-modes timer (default-mode timers stop while a slider is dragged).
+- Dimming below the minimum (`dimBelowMinimum`, off by default): DDC monitors' brightness runs from −0.4 to 1. Below 0
+  the monitor stays at DDC 0 and `GammaDimmer` dims it (a quarter of normal at −0.4). `GammaDimmer` tracks each
+  display's level so one can be restored without undoing others. macOS restores gamma when the app exits, even on a
+  crash (verified with `kill -9`). Levels below 0 are kept per monitor across reloads; following stays within 0–1.
 - The maintainer's test setup: MacBook Air + BenQ EX271Q on USB-C (input `0x13`). Restore both screens' brightness
   after any test that changes them.
 - Accessibility permission is per app: the dev build shows up as *DisplayDeck Dev* and the release as *DisplayDeck*.

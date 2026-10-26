@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "volumeKeys": "\(keys.volumeEnabled)",
             "keysControlAllDisplays": "\(keys.controlsAllDisplays)",
             "followBuiltinBrightness": "\(DisplayManager.followsBuiltin)",
+            "dimBelowMinimum": "\(Display.dimsBelowMinimum)",
             "shortcuts": "\(shortcuts.combos.count)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.
@@ -66,9 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if manager.displays.contains(where: { $0.source == .gamma && $0.brightness < 1 }) {
-            GammaDimmer.restoreAll()
-        }
+        if GammaDimmer.isActive { GammaDimmer.restoreAll() }
         ReleaseApp.resume()
     }
 
