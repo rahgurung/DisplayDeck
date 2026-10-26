@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        manager.displays.forEach { $0.turnOnBeforeQuitting() }
         if GammaDimmer.isActive { GammaDimmer.restoreAll() }
         ReleaseApp.resume()
     }

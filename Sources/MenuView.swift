@@ -12,7 +12,7 @@ struct MenuView: View {
     var body: some View {
         VStack(spacing: 8) {
             ForEach(manager.displays) { display in
-                DisplayCard(display: display)
+                DisplayCard(display: display, canTurnOff: manager.canTurnOff(display))
             }
 
             if manager.displays.count > 1 {
@@ -43,7 +43,7 @@ struct MenuView: View {
         .padding(10)
         .frame(width: 340)
         .onAppear {
-            manager.displays.forEach { $0.refreshInput(); $0.refreshBrightness() }
+            manager.displays.forEach { $0.refreshInput(); $0.refreshBrightness(); $0.refreshPower() }
             brightnessRefresh?.invalidate()
             brightnessRefresh = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [manager] _ in
                 manager.displays.forEach { $0.refreshBrightness() }
@@ -59,6 +59,8 @@ struct MenuView: View {
 
 struct DisplayCard: View {
     let display: Display
+    /// False for the last display you can see.
+    var canTurnOff = true
 
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @AppStorage("dimBelowMinimum") private var dimBelowMinimum = false
@@ -78,44 +80,88 @@ struct DisplayCard: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                // Takes the free width itself rather than leaving it to a Spacer, which would add a gap on each side:
+                // the header is tight enough that "Built-in Retina Display" only just fits.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
-                Spacer(minLength: 8)
-                if !separateRefreshMenu {
-                    ModeMenu(display: display, includesRefresh: true)
+                HStack(spacing: 2) {
+                    if !separateRefreshMenu && !display.isOff {
+                        ModeMenu(display: display, includesRefresh: true)
+                    }
+                    PowerButton(display: display, canTurnOff: canTurnOff)
                 }
             }
 
-            if separateRefreshMenu {
-                HStack(spacing: 6) {
-                    ModeMenu(display: display, includesRefresh: false)
-                    if display.refreshChoices.count > 1 {
-                        RefreshMenu(display: display)
-                    }
+            if display.isOff {
+                HStack(spacing: 10) {
+                    Text(display.isWaking ? "Turning on…" : "Turned off")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 32)
+                    Spacer()
+                    Button("Turn On") { display.turnOn() }
+                        .controlSize(.small)
+                        .disabled(display.isWaking)
                 }
-                .padding(.leading, 32)
-            }
-
-            VStack(spacing: 6) {
-                // A moon below 0, where the monitor is at its minimum and DisplayDeck dims it further.
-                SliderRow(symbol: display.brightness < 0 ? "moon.fill" : "sun.max.fill", label: "Brightness", value: display.brightness,
-                          range: (dimBelowMinimum ? display.minBrightness : 0)...1, disabled: display.probing) {
-                    display.setBrightness($0)
-                }
-                if let contrast = display.contrast {
-                    SliderRow(symbol: "circle.lefthalf.filled", label: "Contrast", value: contrast) { display.setContrast($0) }
-                }
-                if let volume = display.volume {
-                    SliderRow(symbol: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "Volume", value: volume) {
-                        display.setVolume($0)
-                    }
-                }
-                if !display.inputs.isEmpty {
-                    InputRow(display: display)
-                }
+            } else {
+                controls
             }
         }
         .padding(12)
         .background(CardBackground())
+    }
+
+    @ViewBuilder private var controls: some View {
+        if separateRefreshMenu {
+            HStack(spacing: 6) {
+                ModeMenu(display: display, includesRefresh: false)
+                if display.refreshChoices.count > 1 {
+                    RefreshMenu(display: display)
+                }
+            }
+            .padding(.leading, 32)
+        }
+
+        VStack(spacing: 6) {
+            // A moon below 0, where the monitor is at its minimum and DisplayDeck dims it further.
+            SliderRow(symbol: display.brightness < 0 ? "moon.fill" : "sun.max.fill", label: "Brightness", value: display.brightness,
+                      range: (dimBelowMinimum ? display.minBrightness : 0)...1, disabled: display.probing) {
+                display.setBrightness($0)
+            }
+            if let contrast = display.contrast {
+                SliderRow(symbol: "circle.lefthalf.filled", label: "Contrast", value: contrast) { display.setContrast($0) }
+            }
+            if let volume = display.volume {
+                SliderRow(symbol: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "Volume", value: volume) {
+                    display.setVolume($0)
+                }
+            }
+            if !display.inputs.isEmpty {
+                InputRow(display: display)
+            }
+        }
+    }
+}
+
+/// Turns a display off (DDC standby, or a black picture) and on again.
+private struct PowerButton: View {
+    let display: Display
+    let canTurnOff: Bool
+
+    var body: some View {
+        Button { display.isOff ? display.turnOn() : display.turnOff() } label: {
+            // A screen turned off: not the power symbol, which the footer uses for quitting, nor the moon that marks
+            // dimming below the minimum.
+            Image(systemName: "rectangle.slash")
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 16, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(display.isOff ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+        .disabled(display.isWaking || (!display.isOff && !canTurnOff))
+        .help(display.isOff ? "Turn On" : canTurnOff ? "Turn Off" : "The only display you can see can’t be turned off")
+        .accessibilityLabel(display.isOff ? "Turn On \(display.name)" : "Turn Off \(display.name)")
     }
 }
 
@@ -223,8 +269,9 @@ private struct ModeMenu: View {
                 RefreshPicker(display: display)
             }
         } label: {
-            let size = current.map { "\($0.width) × \($0.height)" } ?? "Resolution"
-            PillLabel(text: showsRefresh ? "\(size) · \(current?.refreshLabel ?? "")" : size)
+            // Just the resolution, to leave the header room for the name and the power button; the refresh rate is
+            // in the menu.
+            PillLabel(text: current.map { "\($0.width) × \($0.height)" } ?? "Resolution")
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

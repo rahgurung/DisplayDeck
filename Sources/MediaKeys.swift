@@ -109,7 +109,7 @@ final class MediaKeys {
         }
 
         if isBrightness && brightnessEnabled {
-            let targets = all ? manager.displays : manager.displaysUnderCursor()
+            let targets = (all ? manager.displays : manager.displaysUnderCursor()).filter { !$0.isOff }
             let externals = targets.filter { !$0.isBuiltin }
             guard !externals.isEmpty else { return Unmanaged.passUnretained(event) }
             // Monitors following the built-in display follow the change macOS makes to it; adjusting them here as well
@@ -132,7 +132,7 @@ final class MediaKeys {
         }
 
         if isVolume && volumeEnabled {
-            let targets = all ? manager.displays : manager.displaysUnderCursor()
+            let targets = (all ? manager.displays : manager.displaysUnderCursor()).filter { !$0.isOff }
             let externals = targets.filter { !$0.isBuiltin && $0.volume != nil }
             guard !externals.isEmpty else { return Unmanaged.passUnretained(event) }
             if isDown {
