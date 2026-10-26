@@ -292,10 +292,10 @@ private struct ShortcutRecorder: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            if shortcuts.unavailable.contains(action.id) && !isRecording {
+            if let problem = shortcuts.problems[action.id], !isRecording {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
-                    .help("macOS wouldn’t set this shortcut. Another app may be using it.")
+                    .help(problem)
             }
             Button { isRecording ? stop() : start() } label: {
                 Text(isRecording ? hint ?? "Type shortcut…" : shortcuts.combo(for: action)?.description ?? "Record Shortcut")
@@ -336,6 +336,11 @@ private struct ShortcutRecorder: View {
                 guard let combo = KeyCombo(event: event) else {
                     NSSound.beep()
                     hint = KeyCombo.modifiersNeeded(keyCode: event.keyCode) == 2 ? "Add two of ⌃ ⌥ ⌘" : "Add ⌃, ⌥ or ⌘"
+                    break
+                }
+                guard !combo.usedByMacOS else {
+                    NSSound.beep()
+                    hint = "Used by macOS"
                     break
                 }
                 shortcuts.set(combo, for: action)

@@ -41,6 +41,22 @@ struct KeyCombo: Codable, Equatable {
 
     func sameKeys(as other: KeyCombo) -> Bool { keyCode == other.keyCode && modifiers == other.modifiers }
 
+    /// Whether one of macOS's own shortcuts (System Settings → Keyboard → Keyboard Shortcuts) is on these keys. macOS
+    /// handles those first, so a shortcut here would never run. Other apps' shortcuts can't be seen: macOS lets two
+    /// apps register the same keys.
+    var usedByMacOS: Bool {
+        var array: Unmanaged<CFArray>?
+        guard CopySymbolicHotKeys(&array) == noErr,
+              let shortcuts = array?.takeRetainedValue() as? [[String: Any]] else { return false }
+        // Arrow keys carry an extra flag in this list, so compare only ⌃ ⌥ ⇧ ⌘.
+        let mask = UInt32(controlKey | optionKey | shiftKey | cmdKey)
+        return shortcuts.contains { shortcut in
+            shortcut[kHISymbolicHotKeyEnabled] as? Bool == true
+                && (shortcut[kHISymbolicHotKeyCode] as? Int).map(UInt32.init) == keyCode
+                && (shortcut[kHISymbolicHotKeyModifiers] as? Int).map { UInt32($0) & mask } == modifiers
+        }
+    }
+
     private static let specialKeys: [UInt32: String] = [
         UInt32(kVK_UpArrow): "↑", UInt32(kVK_DownArrow): "↓", UInt32(kVK_LeftArrow): "←", UInt32(kVK_RightArrow): "→",
         UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥", UInt32(kVK_Space): "Space", UInt32(kVK_ForwardDelete): "⌦",
@@ -103,8 +119,8 @@ enum ShortcutAction: Hashable {
 @Observable
 final class Shortcuts {
     private(set) var combos: [String: KeyCombo] = [:]
-    /// Shortcuts macOS wouldn't register, usually because another app already has them.
-    private(set) var unavailable: Set<String> = []
+    /// Why a saved shortcut won't run, by action id: macOS has the keys for itself, or wouldn't register them.
+    private(set) var problems: [String: String] = [:]
     /// The action whose shortcut is being recorded in Settings. Shortcuts are switched off meanwhile, so pressing one
     /// records it rather than running it.
     var recording: ShortcutAction? {
@@ -117,6 +133,7 @@ final class Shortcuts {
     @ObservationIgnored private var handler: EventHandlerRef?
     @ObservationIgnored private var repeatTimer: Timer?
 
+    static let usedByMacOSProblem = "macOS uses this shortcut (System Settings → Keyboard → Keyboard Shortcuts)."
     private static let step = 1.0 / 16.0
     private static let defaultsKey = "shortcuts"
     private static let signature = OSType(0x4444_4b53)  // "DDKS"
@@ -152,9 +169,11 @@ final class Shortcuts {
 
     private func register() {
         unregister()
-        var unavailable: Set<String> = []
+        var problems: [String: String] = [:]
         for (number, (id, combo)) in combos.sorted(by: { $0.key < $1.key }).enumerated() {
             guard let action = ShortcutAction(id: id) else { continue }
+            // Possible for one saved before macOS started using the keys.
+            if combo.usedByMacOS { problems[id] = Self.usedByMacOSProblem; continue }
             let hotKeyID = EventHotKeyID(signature: Self.signature, id: UInt32(number + 1))
             var ref: EventHotKeyRef?
             if RegisterEventHotKey(combo.keyCode, combo.modifiers, hotKeyID, GetEventDispatcherTarget(), 0, &ref) == noErr,
@@ -162,10 +181,10 @@ final class Shortcuts {
                 refs.append(ref)
                 actions[hotKeyID.id] = action
             } else {
-                unavailable.insert(id)
+                problems[id] = "macOS couldn’t set this shortcut."
             }
         }
-        if unavailable != self.unavailable { self.unavailable = unavailable }
+        if problems != self.problems { self.problems = problems }
     }
 
     private func unregister() {
