@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "keysControlAllDisplays": "\(keys.controlsAllDisplays)",
             "followBuiltinBrightness": "\(DisplayManager.followsBuiltin)",
             "dimBelowMinimum": "\(Display.dimsBelowMinimum)",
+            "showTurnOffButton": "\(UserDefaults.standard.bool(forKey: "showTurnOffButton"))",
             "shortcuts": "\(shortcuts.combos.count)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.

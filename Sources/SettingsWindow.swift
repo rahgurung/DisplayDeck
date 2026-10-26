@@ -52,6 +52,7 @@ private struct SettingsView: View {
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @AppStorage("followBuiltinBrightness") private var followBuiltin = false
     @AppStorage("dimBelowMinimum") private var dimBelowMinimum = false
+    @AppStorage("showTurnOffButton") private var showTurnOffButton = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var trusted = AXIsProcessTrusted()
     @State private var autoUpdate = Updater.shared.automaticallyChecksForUpdates
@@ -153,6 +154,10 @@ private struct SettingsView: View {
                       detail: "Drag a monitor’s brightness below 0, or keep pressing brightness down, to darken it further in software.",
                       isOn: $dimBelowMinimum)
                 .onChange(of: dimBelowMinimum) { _, on in if !on { manager.displays.forEach { $0.clampBrightness() } } }
+            Divider()
+            SwitchRow(title: "Show a turn-off button on each display",
+                      detail: "Puts a monitor to sleep, or blacks out a display that can’t sleep. Click it again to turn it back on.",
+                      isOn: $showTurnOffButton)
             Divider()
             SwitchRow(title: "Show refresh rate as a separate menu",
                       detail: "Otherwise it’s shown next to the resolution.", isOn: $separateRefreshMenu)

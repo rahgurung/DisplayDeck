@@ -64,6 +64,7 @@ struct DisplayCard: View {
 
     @AppStorage("separateRefreshMenu") private var separateRefreshMenu = false
     @AppStorage("dimBelowMinimum") private var dimBelowMinimum = false
+    @AppStorage("showTurnOffButton") private var showTurnOffButton = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -81,14 +82,17 @@ struct DisplayCard: View {
                         .foregroundStyle(.secondary)
                 }
                 // Takes the free width itself rather than leaving it to a Spacer, which would add a gap on each side:
-                // the header is tight enough that "Built-in Retina Display" only just fits.
+                // with the turn-off button, the header is tight enough that "Built-in Retina Display" only just fits.
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
                 HStack(spacing: 2) {
                     if !separateRefreshMenu && !display.isOff {
-                        ModeMenu(display: display, includesRefresh: true)
+                        ModeMenu(display: display, includesRefresh: true, shortLabel: showTurnOffButton)
                     }
-                    PowerButton(display: display, canTurnOff: canTurnOff)
+                    // Still shown for a display that's off, so it can always be turned on again.
+                    if showTurnOffButton || display.isOff {
+                        PowerButton(display: display, canTurnOff: canTurnOff)
+                    }
                 }
             }
 
@@ -281,6 +285,9 @@ private struct InputRow: View {
 private struct ModeMenu: View {
     let display: Display
     let includesRefresh: Bool
+    /// Just the resolution in the label, to leave the header room for the turn-off button; the refresh rate is still
+    /// in the menu.
+    var shortLabel = false
 
     var body: some View {
         let current = display.currentMode
@@ -300,9 +307,8 @@ private struct ModeMenu: View {
                 RefreshPicker(display: display)
             }
         } label: {
-            // Just the resolution, to leave the header room for the name and the power button; the refresh rate is
-            // in the menu.
-            PillLabel(text: current.map { "\($0.width) × \($0.height)" } ?? "Resolution")
+            let size = current.map { "\($0.width) × \($0.height)" } ?? "Resolution"
+            PillLabel(text: showsRefresh && !shortLabel ? "\(size) · \(current?.refreshLabel ?? "")" : size)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

@@ -134,7 +134,7 @@ Instead, render the real SwiftUI views offscreen:
   the monitor stays at DDC 0 and `GammaDimmer` dims it (a quarter of normal at −0.4). `GammaDimmer` tracks each
   display's level so one can be restored without undoing others. macOS restores gamma when the app exits, even on a
   crash (verified with `kill -9`). Levels below 0 are kept per monitor across reloads; following stays within 0–1.
-- Turning a display off: DDC power mode (`0xD6`): 4 to sleep, 1 to wake. The BenQ reports 2 in standby, keeps
+- Turning a display off (button behind `showTurnOffButton`, off by default): DDC power mode (`0xD6`): 4 to sleep, 1 to wake. The BenQ reports 2 in standby, keeps
   answering DDC, and stays in macOS's display list; waking takes a few seconds and the first request can go unanswered,
   so `wake` retries. Monitors that don't answer `0xD6` (and the built-in display) are blacked out with gamma instead.
   While off, every command to the display is skipped (it could wake it). The last visible display can't be turned off.
