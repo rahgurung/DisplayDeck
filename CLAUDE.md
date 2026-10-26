@@ -100,6 +100,12 @@ Instead, render the real SwiftUI views offscreen:
 - Web pages: `qlmanage -t -s 1400 -o <dir> page.html` renders the top of a page; wrap it in an `<iframe>` 390 px wide for
   phone width.
 - Offscreen capture of `TabView`'s tab bar is unreliable; open the real app for anything doubtful.
+- `docs/screenshot.png` (README) is a render of the website's hero mock (`.stage` in `docs/index.html`), not of the
+  app: update the mock to match the menu, then render it with headless Chrome from a copy of `docs/` whose page gets
+  extra CSS hiding everything but `.stage` (`visibility: hidden` on `body *`, the stage `position: fixed; left: 20px;
+  top: 18px; width: 940px`, its `.hud` hidden): `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=980,<stage height + 36>
+  --screenshot=docs/screenshot.png file://…/index.html`.
 
 ## Project board and issues
 
