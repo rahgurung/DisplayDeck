@@ -80,6 +80,8 @@ enum ShortcutAction: Hashable {
     case brightnessUp, brightnessDown, contrastUp, contrastDown, volumeUp, volumeDown, mute
     /// Switches the monitor with this `Display.monitorKey` to the input with this VCP 0x60 value.
     case input(monitor: String, value: UInt8)
+    /// Applies the preset with this id.
+    case preset(UUID)
 
     static let levels: [ShortcutAction] = [.brightnessUp, .brightnessDown, .contrastUp, .contrastDown, .volumeUp, .volumeDown, .mute]
 
@@ -93,11 +95,16 @@ enum ShortcutAction: Hashable {
         case .volumeDown: "volumeDown"
         case .mute: "mute"
         case let .input(monitor, value): "input:\(monitor):\(value)"
+        case let .preset(id): "preset:\(id.uuidString)"
         }
     }
 
     init?(id: String) {
         if let action = Self.levels.first(where: { $0.id == id }) { self = action; return }
+        if id.hasPrefix("preset:"), let uuid = UUID(uuidString: String(id.dropFirst("preset:".count))) {
+            self = .preset(uuid)
+            return
+        }
         let parts = id.split(separator: ":")
         guard parts.count == 3, parts[0] == "input", let value = UInt8(parts[2]) else { return nil }
         self = .input(monitor: String(parts[1]), value: value)
@@ -113,13 +120,17 @@ enum ShortcutAction: Hashable {
         case .volumeDown: "Volume down"
         case .mute: "Mute"
         case .input: "Input"
+        case .preset: "Preset"
         }
     }
 
     /// Brightness, contrast and volume repeat while the shortcut is held, like the keys they stand in for.
-    var repeats: Bool { self != .mute && !isInput }
-
-    private var isInput: Bool { if case .input = self { true } else { false } }
+    var repeats: Bool {
+        switch self {
+        case .brightnessUp, .brightnessDown, .contrastUp, .contrastDown, .volumeUp, .volumeDown: true
+        case .mute, .input, .preset: false
+        }
+    }
 }
 
 /// User-defined global shortcuts, for keyboards without Mac media keys and for switching inputs. They use Carbon hot
@@ -136,6 +147,8 @@ final class Shortcuts {
     }
 
     @ObservationIgnored private let manager: DisplayManager
+    /// For preset shortcuts.
+    @ObservationIgnored var presets: Presets?
     @ObservationIgnored private var refs: [EventHotKeyRef] = []
     @ObservationIgnored private var actions: [UInt32: ShortcutAction] = [:]
     @ObservationIgnored private var handler: EventHandlerRef?
@@ -263,6 +276,8 @@ final class Shortcuts {
         case .volumeDown: stepVolume(-Self.step)
         case .mute: stepVolume(nil)
         case let .input(monitor, value): switchInput(monitor: monitor, value: value)
+        case let .preset(id):
+            if let presets, let preset = presets.preset(id) { presets.apply(preset, to: manager.displays) }
         }
     }
 

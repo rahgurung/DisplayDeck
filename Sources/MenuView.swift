@@ -4,6 +4,7 @@ import SwiftUI
 /// The panel shown from the menu bar icon: one card per display, then mirroring and the footer actions.
 struct MenuView: View {
     let manager: DisplayManager
+    let presets: Presets
     let openSettings: () -> Void
 
     /// Keeps the built-in display's slider in step with macOS (its keys, auto-brightness) while the menu is open.
@@ -13,6 +14,14 @@ struct MenuView: View {
         VStack(spacing: 8) {
             ForEach(manager.displays) { display in
                 DisplayCard(display: display, canTurnOff: manager.canTurnOff(display))
+            }
+
+            // Only once there are presets, so the menu is unchanged for people who don't use them.
+            if !presets.all.isEmpty {
+                PresetsRow(manager: manager, presets: presets) {
+                    UserDefaults.standard.set("presets", forKey: "settingsTab")
+                    openSettings()
+                }
             }
 
             if manager.displays.count > 1 {
@@ -353,6 +362,40 @@ private struct RefreshPicker: View {
             }
         }
         .pickerStyle(.inline)
+    }
+}
+
+/// Presets in a drop-down. The pill names the preset in effect: the one every display's levels still match.
+private struct PresetsRow: View {
+    let manager: DisplayManager
+    let presets: Presets
+    let editPresets: () -> Void
+
+    var body: some View {
+        let current = presets.matching(manager.displays)
+        HStack {
+            Label("Presets", systemImage: "slider.horizontal.3")
+            Spacer()
+            Menu {
+                ForEach(presets.all) { preset in
+                    Button { presets.apply(preset, to: manager.displays) } label: {
+                        if preset.id == current?.id { Label(preset.name, systemImage: "checkmark") } else { Text(preset.name) }
+                    }
+                }
+                Divider()
+                Button("Edit Presets…", action: editPresets)
+            } label: {
+                PillLabel(text: current?.name ?? "Choose")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Apply a preset")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(CardBackground())
     }
 }
 
