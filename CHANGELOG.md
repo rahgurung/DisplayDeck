@@ -3,6 +3,14 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.6
+
+### New
+- **Presets.** Save every display's brightness, contrast and volume under a name like "Day" or "Night" in the new *Settings → Presets* tab, then apply them all at once from the menu or with a keyboard shortcut. Each display goes back to its own saved levels, and the menu shows which preset is in effect.
+
+### Changed
+- **Update settings moved to General.** *Automatically check for updates* and *Check for Updates…* are now in *Settings → General*, so all the tabs fit the window.
+
 ## 1.5
 
 ### New
