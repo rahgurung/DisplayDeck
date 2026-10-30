@@ -11,9 +11,10 @@ final class SettingsWindow {
 
     private var window: NSWindow?
 
-    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts) {
+    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts, presets: Presets) {
         if window == nil {
-            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts))
+            let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts,
+                                                                        presets: presets))
             let window = NSWindow(contentViewController: controller)
             window.title = appName
             window.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -33,7 +34,7 @@ final class SettingsWindow {
 }
 
 private enum SettingsTab: String {
-    case general, displays, keyboard, shortcuts, updates
+    case general, displays, keyboard, shortcuts, presets
 
     var title: String { rawValue.capitalized }
 }
@@ -42,6 +43,7 @@ private struct SettingsView: View {
     let manager: DisplayManager
     let keys: MediaKeys
     let shortcuts: Shortcuts
+    let presets: Presets
 
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
@@ -92,7 +94,7 @@ private struct SettingsView: View {
                 case .displays: displaysTab
                 case .keyboard: keyboardTab
                 case .shortcuts: shortcutsTab
-                case .updates: updatesTab
+                case .presets: presetsTab
                 }
             }
             .onAppear {
@@ -115,11 +117,8 @@ private struct SettingsView: View {
         .onReceive(poll) { _ in trusted = AXIsProcessTrusted() }
     }
 
-    /// Updates only exist in release builds, which carry a feed URL.
-    private var tabs: [SettingsTab] {
-        Updater.shared.isAvailable ? [.general, .displays, .keyboard, .shortcuts, .updates]
-            : [.general, .displays, .keyboard, .shortcuts]
-    }
+    /// Five fit the window's width; updates are in General.
+    private let tabs: [SettingsTab] = [.general, .displays, .keyboard, .shortcuts, .presets]
 
     private var generalTab: some View {
         SettingsPage {
@@ -139,6 +138,19 @@ private struct SettingsView: View {
                 SwitchRow(title: "Share anonymous usage stats",
                           detail: "Versions and which features you use. Nothing personal.",
                           isOn: $shareAnalytics)
+            }
+            // Updates only exist in release builds, which carry a feed URL.
+            if Updater.shared.isAvailable {
+                Divider()
+                SwitchRow(title: "Automatically check for updates",
+                          detail: "Checks once a day and asks before installing.", isOn: $autoUpdate)
+                    .onChange(of: autoUpdate) { _, on in Updater.shared.automaticallyChecksForUpdates = on }
+                HStack {
+                    Spacer()
+                    Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                        .controlSize(.small)
+                        .disabled(!Updater.shared.canCheckForUpdates)
+                }
             }
         }
     }
@@ -206,12 +218,42 @@ private struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            // Scrolls once there are many rows (monitors with several inputs, presets), so Settings still fits a
+            // 1440 × 900 screen.
+            if shortcutRows > 13 {
+                ScrollView {
+                    shortcutList
+                        .padding(.trailing, 14)
+                }
+                .frame(height: 420)
+            } else {
+                shortcutList
+            }
+        }
+        .onAppear { shortcuts.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in shortcuts.refresh() }
+    }
+
+    private var inputDisplays: [Display] { manager.displays.filter { $0.source == .ddc && !$0.inputs.isEmpty } }
+
+    private var shortcutRows: Int {
+        ShortcutAction.levels.count + presets.all.count + inputDisplays.reduce(0) { $0 + $1.inputs.count }
+    }
+
+    private var shortcutList: some View {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(ShortcutAction.levels, id: \.self) { action in
                 ShortcutRow(title: action.title, action: action, shortcuts: shortcuts)
             }
-            .onAppear { shortcuts.refresh() }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in shortcuts.refresh() }
-            ForEach(manager.displays.filter { $0.source == .ddc && !$0.inputs.isEmpty }) { display in
+            if !presets.all.isEmpty {
+                Divider()
+                Text("Presets")
+                    .font(.callout.weight(.medium))
+                ForEach(presets.all) { preset in
+                    ShortcutRow(title: preset.name, action: .preset(preset.id), shortcuts: shortcuts)
+                }
+            }
+            ForEach(inputDisplays) { display in
                 Divider()
                 Text("\(display.name) inputs")
                     .font(.callout.weight(.medium))
@@ -223,20 +265,28 @@ private struct SettingsView: View {
         }
     }
 
-    private var updatesTab: some View {
+    private var presetsTab: some View {
         SettingsPage {
-            SwitchRow(title: "Automatically check for updates",
-                      detail: "Checks once a day and asks before installing.", isOn: $autoUpdate)
-                .onChange(of: autoUpdate) { _, on in Updater.shared.automaticallyChecksForUpdates = on }
+            Text("Save the current brightness, contrast and volume of every display, then apply them all at once from the menu or a shortcut (see Shortcuts).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(presets.all) { preset in
+                Divider()
+                PresetRow(preset: preset, presets: presets, manager: manager) {
+                    shortcuts.set(nil, for: .preset(preset.id))
+                    presets.delete(preset.id)
+                }
+            }
             Divider()
             HStack {
                 Spacer()
-                Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                Button("Save Current Levels as Preset") { presets.saveCurrent(from: manager.displays) }
                     .controlSize(.small)
-                    .disabled(!Updater.shared.canCheckForUpdates)
             }
         }
     }
+
 }
 
 /// The rows of one settings tab.
@@ -273,6 +323,47 @@ private struct SwitchRow: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+}
+
+/// One preset: its name (edited in place), what it sets, and Apply, Update and Delete.
+private struct PresetRow: View {
+    let preset: Preset
+    let presets: Presets
+    let manager: DisplayManager
+    let delete: () -> Void
+
+    @State private var name = ""
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                TextField("Name", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .frame(maxWidth: 180)
+                Text(presets.summary(of: preset, displays: manager.displays))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button("Apply") { presets.apply(preset, to: manager.displays) }
+                .controlSize(.small)
+            Button { presets.update(preset.id, from: manager.displays) } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderless)
+            .help("Save the current levels into this preset")
+            Button(action: delete) { Image(systemName: "trash") }
+                .buttonStyle(.borderless)
+                .help("Delete this preset")
+        }
+        .onAppear { name = preset.name }
+        .onChange(of: name) { _, new in
+            let trimmed = new.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty, trimmed != preset.name { presets.rename(preset.id, to: trimmed) }
+        }
     }
 }
 

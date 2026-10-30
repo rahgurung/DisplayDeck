@@ -12,8 +12,9 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 | `Sources/DisplayManager.swift` | `Display` (one per screen) and `DisplayManager` (reload on reconfiguration, following the built-in display). |
 | `Sources/InputSource.swift` | Input names per manufacturer and the capabilities-string parser. |
 | `Sources/MenuView.swift` | The menu bar panel (one card per display). |
-| `Sources/SettingsWindow.swift` | Settings, as tabs (segmented control). |
+| `Sources/SettingsWindow.swift` | Settings, as tabs (segmented control). Five tabs fill the 460 pt width; updates live in General. |
 | `Sources/MediaKeys.swift` | Brightness/volume key event tap (needs Accessibility). |
+| `Sources/Presets.swift` | Named presets (levels per display, by `monitorKey`), stored as JSON under `presets`. |
 | `Sources/Shortcuts.swift` | Custom global shortcuts via Carbon `RegisterEventHotKey` (no Accessibility needed), stored as JSON under `shortcuts`. |
 | `Sources/Updater.swift` | Sparkle; only active when the build has a feed URL. |
 | `docs/` | Website: `index.html`, `compare.html`, generated `releases.json` / `appcast.xml`. |
