@@ -67,6 +67,7 @@ final class Presets {
     func apply(_ preset: Preset, to displays: [Display]) {
         for display in displays.sorted(by: { $0.isBuiltin && !$1.isBuiltin }) where !display.isOff {
             guard let levels = preset.levels[display.monitorKey] else { continue }
+            display.refreshBrightness()  // The built-in display's own keys may have changed it since DisplayDeck last looked.
             if let brightness = levels.brightness, abs(brightness - display.brightness) >= 0.005 {
                 display.setBrightness(brightness)
             }

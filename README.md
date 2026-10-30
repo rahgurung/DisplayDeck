@@ -102,7 +102,7 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 - How many displays are connected and how each is controlled (DDC / software / Apple)
 - Which options are on, and when the menu or settings window is opened, a monitor's input is switched, a preset is applied or a display is turned off
 
-Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → Updates**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
+Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → General**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
 
 Each install is identified only by a hashed random ID. Nothing about you, your files or your screen is collected. Turn it off in **Settings → Share anonymous usage stats**. Builds from source send nothing.
 
