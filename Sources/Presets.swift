@@ -111,10 +111,10 @@ final class Presets {
         return levels
     }
 
-    /// A level the preset doesn't set always matches; one it sets must be within half a percent.
+    /// Within half a percent. A level the preset doesn't set, or the display doesn't report right now (some monitors
+    /// miss a request at startup), is skipped, as `apply` skips it.
     private static func close(_ saved: Double?, _ current: Double?) -> Bool {
-        guard let saved else { return true }
-        guard let current else { return false }
+        guard let saved, let current else { return true }
         return abs(saved - current) < 0.005
     }
 
