@@ -66,8 +66,10 @@ the only one of the three GitHub opens in a new tab; it strips `target` from com
 - Branch from the latest `main` (`feature/…`, `fix/…`, `docs/…`).
 - **Always squash-merge**, never a merge commit or rebase: `gh pr merge N --squash --subject "<summary> (#N)" --body "…"`,
   so each PR is one commit on `main`. Write the subject and body to describe the whole PR, not the branch's last commit.
-- PR descriptions: *What this adds* (with screenshots), *How it works* (a file/change table), *Testing* (✅ verified,
-  ⏳ not tried; say honestly what wasn't tested), *Notes*. `Closes #N` for the issue.
+- PR descriptions follow `.github/pull_request_template.md` (GitHub fills it in on the web; `gh pr create --body-file`
+  doesn't, so start from it): *What this adds* (with screenshots), *How it works* (a file/change table), *Testing*
+  (✅ verified, ⏳ not tried; say honestly what wasn't tested) with the **manual checks** for the areas the PR touches
+  plus *Always*, and *Notes*. `Closes #N` for the issue. Keep the checklist up to date when a feature is added.
 - CI (`ci.yml`) only builds; check it with `gh pr checks N --watch`.
 
 ### Screenshots in PRs
