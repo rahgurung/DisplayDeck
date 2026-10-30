@@ -14,6 +14,7 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 | `Sources/MenuView.swift` | The menu bar panel (one card per display). |
 | `Sources/SettingsWindow.swift` | Settings, as tabs (segmented control). Five tabs fill the 460 pt width; updates live in General. |
 | `Sources/MediaKeys.swift` | Brightness/volume key event tap (needs Accessibility). |
+| `Sources/Schedule.swift` | Schedule rules (time, sunrise, sunset → preset), the 2-minute fade, location (CoreLocation, rounded) and `SunTimes`. |
 | `Sources/Presets.swift` | Named presets (levels per display, by `monitorKey`), stored as JSON under `presets`. |
 | `Sources/Shortcuts.swift` | Custom global shortcuts via Carbon `RegisterEventHotKey` (no Accessibility needed), stored as JSON under `shortcuts`. |
 | `Sources/Updater.swift` | Sparkle; only active when the build has a feed URL. |
@@ -146,6 +147,10 @@ Instead, render the real SwiftUI views offscreen:
   answering DDC, and stays in macOS's display list; waking takes a few seconds and the first request can go unanswered,
   so `wake` retries. Monitors that don't answer `0xD6` (and the built-in display) are blacked out with gamma instead.
   While off, every command to the display is skipped (it could wake it). The last visible display can't be turned off.
+- Schedules check every 30 s and on wake; rules whose time passed since the last check (at most a day back, also
+  across quits) are caught up by applying the latest. The fade stops if a display's brightness changes under it, and
+  leaves monitors following the built-in display to follow it. Sunrise/sunset come from `SunTimes` (sunrise equation,
+  within a minute or two); `build.sh` adds the location usage strings.
 - The maintainer's test setup: MacBook Air + BenQ EX271Q on USB-C (input `0x13`). Restore both screens' brightness
   after any test that changes them.
 - Accessibility permission is per app: the dev build shows up as *DisplayDeck Dev* and the release as *DisplayDeck*.

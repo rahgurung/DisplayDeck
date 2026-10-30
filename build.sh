@@ -96,6 +96,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>LSUIElement</key><true/>
+  <key>NSLocationUsageDescription</key><string>DisplayDeck uses your location only to work out sunrise and sunset for schedules.</string>
+  <key>NSLocationWhenInUseUsageDescription</key><string>DisplayDeck uses your location only to work out sunrise and sunset for schedules.</string>
   <key>NSHumanReadableCopyright</key><string>© 2026 Rahul Gurung. MIT License.</string>
   <key>TelemetryDeckAppID</key><string>$TELEMETRYDECK_APP_ID</string>
   <key>TelemetryDeckTestMode</key><$TEST_MODE/>
