@@ -52,11 +52,28 @@ fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
-swiftc -O -parse-as-library -swift-version 5 \
+# Also writes the constant values the Shortcuts metadata below is made from (full source paths, which it matches on).
+swiftc -O -wmo -parse-as-library -swift-version 5 -module-name DisplayDeck \
   -target arm64-apple-macos14.0 \
   -framework IOKit -framework AppKit -framework SwiftUI -framework ServiceManagement \
   -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-  Sources/*.swift -o "$APP/Contents/MacOS/$NAME"
+  -emit-const-values-path build/DisplayDeck.swiftconstvalues \
+  -Xfrontend -const-gather-protocols-file -Xfrontend Packaging/appintents-protocols.json \
+  "$PWD"/Sources/*.swift -o "$APP/Contents/MacOS/$NAME"
+
+# Shortcuts actions are listed from Metadata.appintents, which Xcode's appintentsmetadataprocessor makes. The Command
+# Line Tools don't include it: without it the app works, but its actions don't appear in the Shortcuts app.
+if PROCESSOR=$(xcrun --find appintentsmetadataprocessor 2>/dev/null); then
+  print -l "$PWD"/Sources/*.swift > build/sources.txt
+  echo "$PWD/build/DisplayDeck.swiftconstvalues" > build/constvalues.txt
+  "$PROCESSOR" --output "$APP/Contents/Resources" --module-name DisplayDeck \
+    --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" \
+    --sdk-root "$(xcrun --show-sdk-path)" --xcode-version "$(xcodebuild -version | awk '/Build version/ {print $3}')" \
+    --platform-family macOS --deployment-target 14.0 --target-triple arm64-apple-macos14.0 \
+    --source-file-list build/sources.txt --swift-const-vals-list build/constvalues.txt --force > /dev/null
+else
+  echo "Note: Xcode's appintentsmetadataprocessor wasn't found, so Shortcuts won't list this build's actions."
+fi
 
 [[ -f Resources/AppIcon.icns ]] && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 

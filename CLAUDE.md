@@ -16,6 +16,7 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 | `Sources/MediaKeys.swift` | Brightness/volume key event tap (needs Accessibility). |
 | `Sources/Schedule.swift` | Schedule rules (time, sunrise, sunset → preset), the 2-minute fade, location (CoreLocation, rounded) and `SunTimes`. |
 | `Sources/Presets.swift` | Named presets (levels per display, by `monitorKey`), stored as JSON under `presets`. |
+| `Sources/Intents.swift` | Actions for Apple's Shortcuts app (App Intents): display level, preset, input, mirroring. |
 | `Sources/Shortcuts.swift` | Custom global shortcuts via Carbon `RegisterEventHotKey` (no Accessibility needed), stored as JSON under `shortcuts`. |
 | `Sources/Updater.swift` | Sparkle; only active when the build has a feed URL. |
 | `docs/` | Website: `index.html`, `compare.html`, generated `releases.json` / `appcast.xml`. |
@@ -30,6 +31,10 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
   defaults/permissions. `./build.sh --install` copies the dev app to /Applications next to the release.
   `./build.sh --release` builds `build/DisplayDeck.app` with the release ID, signs with Developer ID, notarizes and
   makes the DMG (CI does this).
+- Shortcuts app actions (App Intents) need `Contents/Resources/Metadata.appintents`, which Xcode normally makes. `build.sh`
+  compiles with `-wmo -module-name DisplayDeck -emit-const-values-path` (full source paths, which the tool matches on)
+  and runs Xcode's `appintentsmetadataprocessor` on them; without Xcode it skips that with a note. Check the output:
+  `Metadata.appintents/extract.actionsdata` lists every action.
 - The local version comes from `git describe` (e.g. `1.3-2-gabc1234`); without tags it falls back to 1.0. `VERSION=`
   overrides it. `build.sh` runs with `set -euo pipefail`, so any command that can fail in a checkout with no tags (like
   CI's shallow clone) needs `|| true`.
