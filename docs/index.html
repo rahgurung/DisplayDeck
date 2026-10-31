@@ -294,7 +294,7 @@ footer a { color: var(--muted); }
       <div class="menubar">
         <div class="left"><span>Finder</span><span class="mb-hide">File</span><span class="mb-hide">Edit</span><span class="mb-hide">View</span></div>
         <span class="mb-item active"><svg width="18" height="18" role="img" aria-label="DisplayDeck menu bar icon"><use href="#glyph"/></svg></span>
-        <span class="mb-hide">Sun 18 Oct</span><span>10:30</span>
+        <span class="mb-hide" data-date>Sun 18 Oct</span><span data-time>10:30</span>
       </div>
       <div class="panel">
         <div class="m-card" data-card>
@@ -444,6 +444,19 @@ footer a { color: var(--muted); }
       hideTimer = setTimeout(() => hud.classList.remove('show'), 1200);
     });
   });
+
+  // The menu bar clock shows the visitor's date and time, in their own format, like macOS ("Fri 31 Oct  14:05").
+  const clockDate = document.querySelector('[data-date]');
+  const clockTime = document.querySelector('[data-time]');
+  const tick = () => {
+    const now = new Date();
+    // Without the commas some locales add ("Sat, Oct 31"), as the macOS menu bar has none.
+    clockDate.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+      .format(now).replace(/,/g, '');
+    clockTime.textContent = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(now);
+    setTimeout(tick, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()));  // On the next minute.
+  };
+  tick();
 
   // Drop-downs: resolutions, the input and presets.
   const menus = {
