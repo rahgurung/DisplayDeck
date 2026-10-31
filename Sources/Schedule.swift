@@ -53,21 +53,36 @@ final class Schedule {
     }
 
     func start() {
-        // Common modes, so it also runs while a menu or slider is being used.
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.check() }
+        // Catches up on rules missed while DisplayDeck wasn't running.
+        if !rules.isEmpty { startTimer() }
+        check()
+    }
+
+    /// Checks every 30 s, only while there are rules. Common modes, so it also runs while a menu or slider is in use.
+    private func startTimer() {
+        guard timer == nil else { return }
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.check() }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.check() }
-        check()
+    }
+
+    private func stopTimerIfIdle() {
+        guard rules.isEmpty else { return }
+        timer?.invalidate()
+        timer = nil
     }
 
     // MARK: Editing
 
     func addRule() {
         guard let preset = presets.all.first else { return }
+        // The first rule counts from now: a time that already passed today isn't applied as missed.
+        if rules.isEmpty { lastCheck = Date() }
         rules.append(ScheduleRule(minutes: 21 * 60, preset: preset.id))
         save()
+        startTimer()
     }
 
     func update(_ rule: ScheduleRule) {
@@ -79,12 +94,14 @@ final class Schedule {
     func delete(_ id: UUID) {
         rules.removeAll { $0.id == id }
         save()
+        stopTimerIfIdle()
     }
 
     /// Rules for a deleted preset go with it.
     func presetDeleted(_ id: UUID) {
         rules.removeAll { $0.preset == id }
         save()
+        stopTimerIfIdle()
     }
 
     var needsLocation: Bool { rules.contains { $0.trigger != .time } }
@@ -124,6 +141,7 @@ final class Schedule {
 
     /// Applies the latest rule whose time came since the last check (looking back at most a day).
     private func check() {
+        guard !rules.isEmpty else { return }
         let now = Date()
         let since = max(lastCheck, now.addingTimeInterval(-86_400))
         lastCheck = now
