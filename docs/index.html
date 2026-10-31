@@ -145,10 +145,31 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 0; bord
 .m-card.toggle-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
 .toggle-card svg { flex: none; width: 18px; height: 18px; }
 .toggle-card span:not(.switch):not(.chip) { margin-right: auto; }
-.d-off { flex: none; width: 15px; height: 15px; color: var(--panel-muted); margin-left: -3px; }
+.d-off { flex: none; display: grid; place-items: center; width: 18px; height: 22px; margin-left: -4px; padding: 0; border: 0; background: none; color: var(--panel-muted); cursor: pointer; }
+.d-off svg { width: 15px; height: 15px; }
+.d-off:disabled { opacity: 0.35; cursor: default; }
+.m-card.off .d-off { color: var(--brand); }
+button.chip { border: 0; font-family: inherit; cursor: pointer; }
+button.chip:hover, button.chip[aria-expanded="true"] { filter: brightness(0.94); }
+.off-row { display: none; align-items: center; justify-content: space-between; margin-left: 32px; font-size: 12px; color: var(--panel-muted); }
+.m-card.off .row, .m-card.off .d-head .chip { display: none; }
+.m-card.off .d-head { margin-bottom: 6px; }
+.m-card.off .off-row { display: flex; }
+.panel { position: relative; }
+.pop {
+  position: absolute; z-index: 5; min-width: 150px; padding: 5px; border-radius: 9px;
+  background: var(--panel); color: var(--panel-text); font-size: 13px;
+  backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+}
+.pop button { position: relative; display: block; width: 100%; padding: 4px 10px 4px 24px; border: 0; border-radius: 5px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pop button[aria-checked="true"]::before { content: "✓"; position: absolute; left: 8px; }
+.pop button:hover, .pop button:focus-visible { background: var(--brand); color: #fff; outline: none; }
 .toggle-card .chip svg { width: 9px; height: 9px; }
-.switch { width: 28px; height: 16px; border-radius: 8px; background: var(--track); position: relative; flex: none; }
-.switch::after { content: ""; position: absolute; left: 1.5px; top: 1.5px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.3); }
+.switch { width: 28px; height: 16px; padding: 0; border: 0; border-radius: 8px; background: var(--track); position: relative; flex: none; cursor: pointer; transition: background 0.15s; }
+.switch::after { content: ""; position: absolute; left: 1.5px; top: 1.5px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.3); transition: left 0.15s; }
+.switch[aria-checked="true"] { background: var(--brand); }
+.switch[aria-checked="true"]::after { left: 13.5px; }
 .p-foot { display: flex; align-items: center; gap: 2px; margin-top: 8px; padding-left: 6px; color: var(--panel-muted); }
 .p-foot .p-brand { margin-right: auto; font-size: 11px; font-weight: 500; }
 .p-foot svg { width: 28px; height: 28px; padding: 7px; }
@@ -276,24 +297,27 @@ footer a { color: var(--muted); }
         <span class="mb-hide">Sun 18 Oct</span><span>10:30</span>
       </div>
       <div class="panel">
-        <div class="m-card">
-          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-laptop"/></svg><span class="d-title"><span class="d-name">Built-in Retina Display</span><span class="d-src">Built-in</span></span><span class="chip">1440 × 900<svg aria-hidden="true"><use href="#i-chevron"/></svg></span><svg class="d-off" role="img" aria-label="Turn off"><use href="#i-sunoff"/></svg></div>
-          <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="72" aria-label="Built-in display brightness" data-hud="sun"><output>72</output></label>
+        <div class="m-card" data-card>
+          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-laptop"/></svg><span class="d-title"><span class="d-name">Built-in Retina Display</span><span class="d-src">Built-in</span></span><button class="chip" type="button" data-menu="res0" aria-haspopup="menu" aria-expanded="false" aria-label="Built-in display resolution"><span class="chip-text">1440 × 900</span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button><button class="d-off" type="button" title="Turn off" aria-label="Turn off Built-in Retina Display"><svg aria-hidden="true"><use href="#i-sunoff"/></svg></button></div>
+          <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="72" aria-label="Built-in display brightness" data-key="b0" data-hud="sun"><output>72</output></label>
+          <div class="off-row"><span>Turned off</span><button class="chip" type="button" data-turn-on>Turn On</button></div>
         </div>
-        <div class="m-card">
-          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-display"/></svg><span class="d-title"><span class="d-name">Monitor 27</span><span class="d-src">Hardware (DDC)</span></span><span class="chip">2560 × 1440<svg aria-hidden="true"><use href="#i-chevron"/></svg></span><svg class="d-off" role="img" aria-label="Turn off"><use href="#i-sunoff"/></svg></div>
-          <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="55" aria-label="External display brightness" data-hud="sun"><output>55</output></label>
-          <label class="row"><svg aria-hidden="true"><use href="#i-contrast"/></svg><input type="range" value="50" aria-label="External display contrast"><output>50</output></label>
-          <label class="row"><svg aria-hidden="true"><use href="#i-speaker"/></svg><input type="range" value="30" aria-label="External display volume" data-hud="speaker"><output>30</output></label>
-          <div class="row"><svg aria-hidden="true"><use href="#i-input"/></svg><span class="row-label">Input</span><span class="chip">USB-C<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
+        <div class="m-card" data-card>
+          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-display"/></svg><span class="d-title"><span class="d-name">Monitor 27</span><span class="d-src">Hardware (DDC)</span></span><button class="chip" type="button" data-menu="res1" aria-haspopup="menu" aria-expanded="false" aria-label="Monitor resolution"><span class="chip-text">2560 × 1440</span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button><button class="d-off" type="button" title="Turn off" aria-label="Turn off Monitor 27"><svg aria-hidden="true"><use href="#i-sunoff"/></svg></button></div>
+          <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="55" aria-label="External display brightness" data-key="b1" data-hud="sun"><output>55</output></label>
+          <label class="row"><svg aria-hidden="true"><use href="#i-contrast"/></svg><input type="range" value="50" aria-label="External display contrast" data-key="c1"><output>50</output></label>
+          <label class="row"><svg aria-hidden="true"><use href="#i-speaker"/></svg><input type="range" value="30" aria-label="External display volume" data-key="v1" data-hud="speaker"><output>30</output></label>
+          <div class="row"><svg aria-hidden="true"><use href="#i-input"/></svg><span class="row-label">Input</span><button class="chip" type="button" data-menu="input1" aria-haspopup="menu" aria-expanded="false" aria-label="Monitor input"><span class="chip-text">USB-C</span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button></div>
+          <div class="off-row"><span>Turned off</span><button class="chip" type="button" data-turn-on>Turn On</button></div>
         </div>
-        <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-presets"/></svg><span>Presets</span><span class="chip">Night<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
-        <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-mirror"/></svg><span>Mirror displays</span><span class="switch" aria-hidden="true"></span></div>
+        <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-presets"/></svg><span>Presets</span><button class="chip" type="button" data-menu="preset" aria-haspopup="menu" aria-expanded="false" aria-label="Apply a preset"><span class="chip-text">Day</span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button></div>
+        <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-mirror"/></svg><span>Mirror displays</span><button class="switch" type="button" role="switch" aria-checked="false" aria-label="Mirror displays"></button></div>
+        <div class="pop" role="menu" hidden></div>
         <div class="p-foot"><span class="p-brand">DisplayDeck</span><svg role="img" aria-label="Refresh displays"><use href="#i-refresh"/></svg><svg role="img" aria-label="Settings"><use href="#i-gear"/></svg><svg role="img" aria-label="Quit"><use href="#i-power"/></svg></div>
       </div>
       <div class="hud" aria-hidden="true"><svg width="20" height="20"><use href="#i-sun"/></svg><span class="bar"><i></i></span></div>
     </div>
-    <p class="stage-hint">Go ahead, drag the sliders.</p>
+    <p class="stage-hint">Go ahead: drag the sliders, pick a preset, switch the input or turn a display off.</p>
   </div>
 
   <section class="wrap" id="features">
@@ -367,19 +391,51 @@ footer a { color: var(--muted); }
 </footer>
 
 <script>
+  // The menu preview behaves like the app: sliders, presets, the drop-downs, turning a display off and mirroring.
+  const panel = document.querySelector('.panel');
   const hud = document.querySelector('.hud');
   const hudIcon = hud.querySelector('use');
   const hudBar = hud.querySelector('.bar i');
   let hideTimer;
-  document.querySelectorAll('.panel input[type=range]').forEach((input) => {
-    const out = input.nextElementSibling;
-    const paint = () => {
-      out.value = input.value;
-      input.style.setProperty('--fill', input.value + '%');
+  const sliders = {};
+  const paint = (input) => {
+    input.nextElementSibling.value = input.value;
+    input.style.setProperty('--fill', input.value + '%');
+  };
+
+  // Presets set every slider; the pill names the one the sliders still match, as in the app.
+  const presets = {
+    Day: { b0: 72, b1: 55, c1: 50, v1: 30 },
+    Night: { b0: 30, b1: 15, c1: 45, v1: 15 },
+    Movie: { b0: 50, b1: 40, c1: 60, v1: 60 },
+  };
+  const presetChip = panel.querySelector('[data-menu=preset] .chip-text');
+  const matchingPreset = () =>
+    Object.keys(presets).find((name) => Object.entries(presets[name]).every(([key, value]) => +sliders[key].value === value));
+  const updatePresetChip = () => { presetChip.textContent = matchingPreset() || 'Choose'; };
+  let animation;
+  const applyPreset = (name) => {
+    clearInterval(animation);
+    const start = Object.fromEntries(Object.keys(sliders).map((key) => [key, +sliders[key].value]));
+    const began = performance.now();
+    const step = () => {
+      const progress = Math.min(1, (performance.now() - began) / 400);
+      const eased = 1 - (1 - progress) ** 3;
+      for (const [key, target] of Object.entries(presets[name])) {
+        sliders[key].value = Math.round(start[key] + (target - start[key]) * eased);
+        paint(sliders[key]);
+      }
+      if (progress === 1) { clearInterval(animation); updatePresetChip(); }
     };
-    paint();
+    animation = setInterval(step, 16);
+  };
+
+  panel.querySelectorAll('input[type=range]').forEach((input) => {
+    sliders[input.dataset.key] = input;
+    paint(input);
     input.addEventListener('input', () => {
-      paint();
+      paint(input);
+      updatePresetChip();
       if (!input.dataset.hud) return;
       hudIcon.setAttribute('href', '#i-' + input.dataset.hud);
       hudBar.style.width = input.value + '%';
@@ -388,6 +444,78 @@ footer a { color: var(--muted); }
       hideTimer = setTimeout(() => hud.classList.remove('show'), 1200);
     });
   });
+
+  // Drop-downs: resolutions, the input and presets.
+  const menus = {
+    res0: ['1024 × 640', '1280 × 800', '1440 × 900', '1680 × 1050'],
+    res1: ['1920 × 1080', '2048 × 1152', '2560 × 1440'],
+    input1: ['USB-C', 'HDMI 1', 'HDMI 2', 'DisplayPort'],
+    preset: Object.keys(presets),
+  };
+  const pop = panel.querySelector('.pop');
+  let openChip = null;
+  const closeMenu = () => {
+    pop.hidden = true;
+    if (openChip) openChip.setAttribute('aria-expanded', 'false');
+    openChip = null;
+  };
+  panel.querySelectorAll('[data-menu]').forEach((chip) => {
+    chip.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (openChip === chip) return closeMenu();
+      closeMenu();
+      const label = chip.querySelector('.chip-text');
+      const kind = chip.dataset.menu;
+      pop.replaceChildren(...menus[kind].map((option) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.setAttribute('role', 'menuitemradio');
+        item.setAttribute('aria-checked', String(option === label.textContent));
+        item.textContent = option;
+        item.addEventListener('click', () => {
+          if (kind === 'preset') applyPreset(option); else label.textContent = option;
+          closeMenu();
+          chip.focus();
+        });
+        return item;
+      }));
+      pop.hidden = false;
+      const chipBox = chip.getBoundingClientRect();
+      const panelBox = panel.getBoundingClientRect();
+      pop.style.top = chipBox.bottom - panelBox.top + 4 + 'px';
+      pop.style.left = Math.max(6, chipBox.right - panelBox.left - pop.offsetWidth) + 'px';
+      chip.setAttribute('aria-expanded', 'true');
+      openChip = chip;
+      (pop.querySelector('[aria-checked=true]') || pop.firstChild).focus();
+    });
+  });
+  document.addEventListener('click', (event) => { if (openChip && !pop.contains(event.target)) closeMenu(); });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && openChip) { const chip = openChip; closeMenu(); chip.focus(); }
+  });
+
+  // Turning a display off: never the last one you can see, as in the app.
+  const cards = [...panel.querySelectorAll('[data-card]')];
+  const updateOffButtons = () => {
+    const on = cards.filter((card) => !card.classList.contains('off'));
+    cards.forEach((card) => {
+      const button = card.querySelector('.d-off');
+      const off = card.classList.contains('off');
+      const name = card.querySelector('.d-name').textContent;
+      button.disabled = !off && on.length === 1;
+      button.title = off ? 'Turn on' : button.disabled ? 'The only display you can see can’t be turned off' : 'Turn off';
+      button.setAttribute('aria-label', (off ? 'Turn on ' : 'Turn off ') + name);
+    });
+  };
+  cards.forEach((card) => {
+    const toggle = () => { closeMenu(); card.classList.toggle('off'); updateOffButtons(); };
+    card.querySelector('.d-off').addEventListener('click', toggle);
+    card.querySelector('[data-turn-on]').addEventListener('click', toggle);
+  });
+  updateOffButtons();
+
+  const mirror = panel.querySelector('.switch');
+  mirror.addEventListener('click', () => mirror.setAttribute('aria-checked', String(mirror.getAttribute('aria-checked') !== 'true')));
   // releases.json is generated at deploy time from GitHub Releases (see .github/workflows/pages.yml).
   const formatSize = (bytes) => (bytes / 1048576).toFixed(1) + ' MB';
   const formatDate = (iso) => new Date(iso).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' });
