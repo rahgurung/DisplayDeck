@@ -124,7 +124,7 @@ h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.05; letter-spacing: -0.03
 }
 .m-card { background: var(--card); border: 0.5px solid var(--card-line); border-radius: 12px; padding: 12px; }
 .m-card + .m-card { margin-top: 8px; }
-.d-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.d-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .d-icon { flex: none; width: 22px; color: var(--panel-muted); }
 .d-title { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
 .d-name { font-weight: 650; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -144,7 +144,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 3px rgba(0, 0, 0, 0.4); }
 .m-card.toggle-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
 .toggle-card svg { flex: none; width: 18px; height: 18px; }
-.toggle-card span:not(.switch) { margin-right: auto; }
+.toggle-card span:not(.switch):not(.chip) { margin-right: auto; }
+.d-off { flex: none; width: 15px; height: 15px; color: var(--panel-muted); margin-left: -3px; }
+.toggle-card .chip svg { width: 9px; height: 9px; }
 .switch { width: 28px; height: 16px; border-radius: 8px; background: var(--track); position: relative; flex: none; }
 .switch::after { content: ""; position: absolute; left: 1.5px; top: 1.5px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.3); }
 .p-foot { display: flex; align-items: center; gap: 2px; margin-top: 8px; padding-left: 6px; color: var(--panel-muted); }
@@ -232,6 +234,8 @@ footer a { color: var(--muted); }
   <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19"/></g></symbol>
   <symbol id="i-keys" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h1M10.5 10h1M14.5 10h1M8 14h8" stroke-linecap="round"/></g></symbol>
   <symbol id="i-res" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></g></symbol>
+  <symbol id="i-sunoff" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15.76 10.63A4 4 0 0 1 10.63 15.76M8.24 13.37A4 4 0 0 1 13.37 8.24M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M20.5 3.5 3.5 20.5"/></g></symbol>
+  <symbol id="i-presets" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></g><g fill="currentColor"><circle cx="15" cy="6" r="2.6"/><circle cx="8" cy="12" r="2.6"/><circle cx="13" cy="18" r="2.6"/></g></symbol>
   <symbol id="i-input" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="11" rx="2"/><path d="M12 14v4M5 20h14"/></g></symbol>
   <symbol id="i-mirror" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="6" width="9" height="7" rx="1.5"/><rect x="12.5" y="11" width="9" height="7" rx="1.5"/></g></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/></g></symbol>
@@ -273,16 +277,17 @@ footer a { color: var(--muted); }
       </div>
       <div class="panel">
         <div class="m-card">
-          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-laptop"/></svg><span class="d-title"><span class="d-name">Built-in Retina Display</span><span class="d-src">Built-in</span></span><span class="chip">1440 × 900<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
+          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-laptop"/></svg><span class="d-title"><span class="d-name">Built-in Retina Display</span><span class="d-src">Built-in</span></span><span class="chip">1440 × 900<svg aria-hidden="true"><use href="#i-chevron"/></svg></span><svg class="d-off" role="img" aria-label="Turn off"><use href="#i-sunoff"/></svg></div>
           <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="72" aria-label="Built-in display brightness" data-hud="sun"><output>72</output></label>
         </div>
         <div class="m-card">
-          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-display"/></svg><span class="d-title"><span class="d-name">Monitor 27</span><span class="d-src">Hardware (DDC)</span></span><span class="chip">2560 × 1440 · 144 Hz<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
+          <div class="d-head"><svg class="d-icon" height="20" aria-hidden="true"><use href="#i-display"/></svg><span class="d-title"><span class="d-name">Monitor 27</span><span class="d-src">Hardware (DDC)</span></span><span class="chip">2560 × 1440<svg aria-hidden="true"><use href="#i-chevron"/></svg></span><svg class="d-off" role="img" aria-label="Turn off"><use href="#i-sunoff"/></svg></div>
           <label class="row"><svg aria-hidden="true"><use href="#i-sun"/></svg><input type="range" value="55" aria-label="External display brightness" data-hud="sun"><output>55</output></label>
           <label class="row"><svg aria-hidden="true"><use href="#i-contrast"/></svg><input type="range" value="50" aria-label="External display contrast"><output>50</output></label>
           <label class="row"><svg aria-hidden="true"><use href="#i-speaker"/></svg><input type="range" value="30" aria-label="External display volume" data-hud="speaker"><output>30</output></label>
           <div class="row"><svg aria-hidden="true"><use href="#i-input"/></svg><span class="row-label">Input</span><span class="chip">USB-C<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
         </div>
+        <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-presets"/></svg><span>Presets</span><span class="chip">Night<svg aria-hidden="true"><use href="#i-chevron"/></svg></span></div>
         <div class="m-card toggle-card"><svg aria-hidden="true"><use href="#i-mirror"/></svg><span>Mirror displays</span><span class="switch" aria-hidden="true"></span></div>
         <div class="p-foot"><span class="p-brand">DisplayDeck</span><svg role="img" aria-label="Refresh displays"><use href="#i-refresh"/></svg><svg role="img" aria-label="Settings"><use href="#i-gear"/></svg><svg role="img" aria-label="Quit"><use href="#i-power"/></svg></div>
       </div>
