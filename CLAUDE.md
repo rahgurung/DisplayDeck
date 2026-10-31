@@ -103,6 +103,10 @@ Instead, render the real SwiftUI views offscreen:
 - Web pages: `qlmanage -t -s 1400 -o <dir> page.html` renders the top of a page; wrap it in an `<iframe>` 390 px wide for
   phone width.
 - Offscreen capture of `TabView`'s tab bar is unreliable; open the real app for anything doubtful.
+- `docs/settings-light.png` / `settings-dark.png` (README) are the real Settings window on the Displays tab, title bar
+  included: build the window as `SettingsWindow.show` does, set `NSApp.applicationIconImage` from
+  `Resources/AppIcon.icns` and the version string in the copy, then `cacheDisplay` the window's frame view
+  (`contentView.superview`). Offscreen windows are inactive, so switches that are on draw grey.
 - `docs/screenshot.png` (README) is a render of the website's hero mock (`.stage` in `docs/index.html`), not of the
   app: update the mock to match the menu, then render it with headless Chrome from a copy of `docs/` whose page gets
   extra CSS hiding everything but `.stage` (`visibility: hidden` on `body *`, the stage `position: fixed; left: 20px;

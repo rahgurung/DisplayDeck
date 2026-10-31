@@ -77,7 +77,7 @@ Releases are signed with a Developer ID and notarized by Apple, so they open wit
 <div align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/settings-dark.png">
-  <img src="docs/settings-light.png" width="420" alt="DisplayDeck settings window with keyboard and general options">
+  <img src="docs/settings-light.png" width="420" alt="DisplayDeck settings, Displays tab: monitors follow the built-in display, dim monitors below their minimum, a turn-off button on each display, and the refresh rate as a separate menu">
 </picture>
 </div>
 
