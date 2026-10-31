@@ -9,7 +9,7 @@ struct DisplayDeckApp: App {
         MenuBarExtra {
             MenuView(manager: delegate.manager, presets: delegate.presets) {
                 SettingsWindow.shared.show(manager: delegate.manager, keys: delegate.keys, shortcuts: delegate.shortcuts,
-                                           presets: delegate.presets)
+                                           presets: delegate.presets, schedule: delegate.schedule)
             }
         } label: {
             Image(nsImage: MenuBarIcon.image)
@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var keys = MediaKeys(manager: manager)
     lazy var shortcuts = Shortcuts(manager: manager)
     lazy var presets = Presets()
+    lazy var schedule = Schedule(manager: manager, presets: presets)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ReleaseApp.pause()
@@ -30,10 +31,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if keys.brightnessEnabled || keys.volumeEnabled { keys.start() }
         shortcuts.presets = presets
         shortcuts.start()
+        schedule.start()
         _ = Updater.shared  // starts scheduled update checks in release builds
         let showWindow = UserDefaults.standard.object(forKey: "showWindowAtLaunch") as? Bool ?? true
         if showWindow && !launchedAsLoginItem {
-            SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts, presets: presets)
+            SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts, presets: presets, schedule: schedule)
         }
 
         Telemetry.send("TelemetryDeck.Session.started")
@@ -48,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "showTurnOffButton": "\(UserDefaults.standard.bool(forKey: "showTurnOffButton"))",
             "shortcuts": "\(shortcuts.combos.count)",
             "presets": "\(presets.all.count)",
+            "scheduleRules": "\(schedule.rules.count)",
         ])
         // Give DDC probing time to settle before reporting how each display is controlled.
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [manager] in
@@ -65,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opening the app again while it's running (Finder, Spotlight, Dock) brings up the settings window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts, presets: presets)
+        SettingsWindow.shared.show(manager: manager, keys: keys, shortcuts: shortcuts, presets: presets, schedule: schedule)
         return true
     }
 

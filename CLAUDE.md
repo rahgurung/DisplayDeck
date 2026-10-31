@@ -14,6 +14,7 @@ No Xcode project: everything is built by `build.sh` with plain `swiftc`.
 | `Sources/MenuView.swift` | The menu bar panel (one card per display). |
 | `Sources/SettingsWindow.swift` | Settings, as tabs (segmented control). Five tabs fill the 460 pt width; updates live in General. |
 | `Sources/MediaKeys.swift` | Brightness/volume key event tap (needs Accessibility). |
+| `Sources/Schedule.swift` | Schedule rules (time, sunrise, sunset → preset), the 2-minute fade, location (CoreLocation, rounded) and `SunTimes`. |
 | `Sources/Presets.swift` | Named presets (levels per display, by `monitorKey`), stored as JSON under `presets`. |
 | `Sources/Shortcuts.swift` | Custom global shortcuts via Carbon `RegisterEventHotKey` (no Accessibility needed), stored as JSON under `shortcuts`. |
 | `Sources/Updater.swift` | Sparkle; only active when the build has a feed URL. |
@@ -102,6 +103,10 @@ Instead, render the real SwiftUI views offscreen:
 - Web pages: `qlmanage -t -s 1400 -o <dir> page.html` renders the top of a page; wrap it in an `<iframe>` 390 px wide for
   phone width.
 - Offscreen capture of `TabView`'s tab bar is unreliable; open the real app for anything doubtful.
+- `docs/settings-light.png` / `settings-dark.png` (README) are the real Settings window on the Displays tab, title bar
+  included: build the window as `SettingsWindow.show` does, set `NSApp.applicationIconImage` from
+  `Resources/AppIcon.icns` and the version string in the copy, then `cacheDisplay` the window's frame view
+  (`contentView.superview`). Offscreen windows are inactive, so switches that are on draw grey.
 - `docs/screenshot.png` (README) is a render of the website's hero mock (`.stage` in `docs/index.html`), not of the
   app: update the mock to match the menu, then render it with headless Chrome from a copy of `docs/` whose page gets
   extra CSS hiding everything but `.stage` (`visibility: hidden` on `body *`, the stage `position: fixed; left: 20px;
@@ -146,6 +151,10 @@ Instead, render the real SwiftUI views offscreen:
   answering DDC, and stays in macOS's display list; waking takes a few seconds and the first request can go unanswered,
   so `wake` retries. Monitors that don't answer `0xD6` (and the built-in display) are blacked out with gamma instead.
   While off, every command to the display is skipped (it could wake it). The last visible display can't be turned off.
+- Schedules check every 30 s and on wake; rules whose time passed since the last check (at most a day back, also
+  across quits) are caught up by applying the latest. The fade stops if a display's brightness changes under it, and
+  leaves monitors following the built-in display to follow it. Sunrise/sunset come from `SunTimes` (sunrise equation,
+  within a minute or two); `build.sh` adds the location usage strings.
 - The maintainer's test setup: MacBook Air + BenQ EX271Q on USB-C (input `0x13`). Restore both screens' brightness
   after any test that changes them.
 - Accessibility permission is per app: the dev build shows up as *DisplayDeck Dev* and the release as *DisplayDeck*.

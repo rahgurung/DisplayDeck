@@ -11,10 +11,10 @@ final class SettingsWindow {
 
     private var window: NSWindow?
 
-    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts, presets: Presets) {
+    func show(manager: DisplayManager, keys: MediaKeys, shortcuts: Shortcuts, presets: Presets, schedule: Schedule) {
         if window == nil {
             let controller = NSHostingController(rootView: SettingsView(manager: manager, keys: keys, shortcuts: shortcuts,
-                                                                        presets: presets))
+                                                                        presets: presets, schedule: schedule))
             let window = NSWindow(contentViewController: controller)
             window.title = appName
             window.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -44,6 +44,7 @@ private struct SettingsView: View {
     let keys: MediaKeys
     let shortcuts: Shortcuts
     let presets: Presets
+    let schedule: Schedule
 
     @AppStorage("settingsTab") private var tab = SettingsTab.general
     @AppStorage("brightnessKeys") private var brightnessKeys = true
@@ -271,10 +272,26 @@ private struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            // Scrolls once there are many presets and rules, so Settings still fits a 1440 × 900 screen.
+            if presets.all.count + schedule.rules.count > 6 {
+                ScrollView {
+                    presetsList
+                        .padding(.trailing, 14)
+                }
+                .frame(height: 480)
+            } else {
+                presetsList
+            }
+        }
+    }
+
+    private var presetsList: some View {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(presets.all) { preset in
                 Divider()
                 PresetRow(preset: preset, presets: presets, manager: manager) {
                     shortcuts.set(nil, for: .preset(preset.id))
+                    schedule.presetDeleted(preset.id)
                     presets.delete(preset.id)
                 }
             }
@@ -283,6 +300,26 @@ private struct SettingsView: View {
                 Spacer()
                 Button("Save Current Levels as Preset") { presets.saveCurrent(from: manager.displays) }
                     .controlSize(.small)
+            }
+            Divider()
+            Text("Schedule")
+                .font(.callout.weight(.medium))
+            Text("Apply a preset by itself at a time of day, or at sunrise or sunset. It fades in over two minutes, and stops if you change the brightness meanwhile.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(schedule.rules) { rule in
+                ScheduleRuleRow(rule: rule, schedule: schedule, presets: presets)
+            }
+            if schedule.needsLocation {
+                SunLocationRow(schedule: schedule)
+            }
+            HStack {
+                Spacer()
+                Button("Add Rule") { schedule.addRule() }
+                    .controlSize(.small)
+                    .disabled(presets.all.isEmpty)
+                    .help(presets.all.isEmpty ? "Save a preset first" : "Apply a preset at a time, or at sunrise or sunset")
             }
         }
     }
@@ -323,6 +360,108 @@ private struct SwitchRow: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+}
+
+/// One schedule rule: when (a time, or sunrise or sunset with an offset), and which preset.
+private struct ScheduleRuleRow: View {
+    let rule: ScheduleRule
+    let schedule: Schedule
+    let presets: Presets
+
+    private static let offsets = [-60, -30, 0, 30, 60]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Picker("When", selection: Binding(get: { rule.trigger }, set: { trigger in
+                var changed = rule
+                changed.trigger = trigger
+                changed.minutes = trigger == .time ? 21 * 60 : 0
+                schedule.update(changed)
+            })) {
+                Text("At").tag(ScheduleRule.Trigger.time)
+                Text("Sunrise").tag(ScheduleRule.Trigger.sunrise)
+                Text("Sunset").tag(ScheduleRule.Trigger.sunset)
+            }
+            .labelsHidden()
+            .fixedSize()
+            if rule.trigger == .time {
+                DatePicker("Time", selection: Binding(get: {
+                    Calendar.current.date(bySettingHour: rule.minutes / 60, minute: rule.minutes % 60, second: 0, of: Date())!
+                }, set: { date in
+                    let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                    var changed = rule
+                    changed.minutes = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+                    schedule.update(changed)
+                }), displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .fixedSize()
+            } else {
+                Picker("Offset", selection: Binding(get: { rule.minutes }, set: { minutes in
+                    var changed = rule
+                    changed.minutes = minutes
+                    schedule.update(changed)
+                })) {
+                    ForEach(Self.offsets, id: \.self) { Text(Self.label(offset: $0)).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+            Image(systemName: "arrow.right")
+                .foregroundStyle(.secondary)
+            Picker("Preset", selection: Binding(get: { rule.preset }, set: { preset in
+                var changed = rule
+                changed.preset = preset
+                schedule.update(changed)
+            })) {
+                ForEach(presets.all) { Text($0.name).tag($0.id) }
+            }
+            .labelsHidden()
+            .fixedSize()
+            Spacer()
+            Button { schedule.delete(rule.id) } label: { Image(systemName: "trash") }
+                .buttonStyle(.borderless)
+                .help("Delete this rule")
+        }
+        .controlSize(.small)
+    }
+
+    private static func label(offset: Int) -> String {
+        switch offset {
+        case 0: "exactly"
+        case let minutes where abs(minutes) >= 60: "\(abs(minutes) / 60) h \(minutes < 0 ? "before" : "after")"
+        case let minutes: "\(abs(minutes)) min \(minutes < 0 ? "before" : "after")"
+        }
+    }
+}
+
+/// Where sunrise and sunset are worked out for: today's times once there's a location, and a button to find it.
+private struct SunLocationRow: View {
+    let schedule: Schedule
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                if let sun = schedule.todaysSun {
+                    Text("Today: sunrise \(sun.rise, style: .time), sunset \(sun.set, style: .time)")
+                } else if schedule.location == nil {
+                    Text("Sunrise and sunset need your location.")
+                } else {
+                    Text("The sun doesn’t rise or set here today.")
+                }
+                Spacer()
+                Button(schedule.location == nil ? "Use My Location" : "Update Location") { schedule.findLocation() }
+                    .disabled(schedule.locating)
+            }
+            .font(.caption)
+            .controlSize(.small)
+            if let error = schedule.locationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
