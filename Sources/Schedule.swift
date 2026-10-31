@@ -54,10 +54,16 @@ final class Schedule {
 
     func start() {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.check() }
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.checkSoon() }
         // Catches up on rules missed while DisplayDeck wasn't running.
         if !rules.isEmpty { startTimer() }
-        check()
+        checkSoon()
+    }
+
+    /// After launch or wake, monitors are reloaded and connect over DDC for a few seconds, reporting placeholder levels
+    /// meanwhile; catching up waits until they're ready, so a fade starts from their real levels.
+    private func checkSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in self?.check() }
     }
 
     /// Checks every 30 s, only while there are rules. Common modes, so it also runs while a menu or slider is in use.
@@ -126,7 +132,9 @@ final class Schedule {
     /// Today's sunrise and sunset where the schedule's location is, or nil without one (or in polar day or night).
     var todaysSun: (rise: Date, set: Date)? {
         guard let location else { return nil }
-        return SunTimes.compute(for: Date(), latitude: location.latitude, longitude: location.longitude)
+        // Noon, as for the rules: late in the day, the current time can round to tomorrow's sunrise and sunset.
+        let noon = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())!
+        return SunTimes.compute(for: noon, latitude: location.latitude, longitude: location.longitude)
     }
 
     // MARK: Running
@@ -159,7 +167,8 @@ final class Schedule {
         let midnight = Calendar.current.startOfDay(for: day)
         switch rule.trigger {
         case .time:
-            return Calendar.current.date(byAdding: .minute, value: rule.minutes, to: midnight)
+            // The clock time that day, also on the days daylight saving starts or ends.
+            return Calendar.current.date(bySettingHour: rule.minutes / 60, minute: rule.minutes % 60, second: 0, of: midnight)
         case .sunrise, .sunset:
             guard let location,
                   let sun = SunTimes.compute(for: midnight.addingTimeInterval(12 * 3600), latitude: location.latitude,

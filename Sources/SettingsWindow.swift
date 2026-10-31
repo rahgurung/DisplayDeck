@@ -387,7 +387,7 @@ private struct ScheduleRuleRow: View {
             .fixedSize()
             if rule.trigger == .time {
                 DatePicker("Time", selection: Binding(get: {
-                    Calendar.current.date(byAdding: .minute, value: rule.minutes, to: Calendar.current.startOfDay(for: Date()))!
+                    Calendar.current.date(bySettingHour: rule.minutes / 60, minute: rule.minutes % 60, second: 0, of: Date())!
                 }, set: { date in
                     let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
                     var changed = rule

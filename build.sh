@@ -65,12 +65,16 @@ FRAMEWORK=$APP/Contents/Frameworks/Sparkle.framework
 ditto "$SPARKLE/Sparkle.framework" "$FRAMEWORK"
 rm -rf "$FRAMEWORK/XPCServices" "$FRAMEWORK/Versions/B/XPCServices"
 
-# Signs Sparkle's helpers, then the framework, then the app (codesign needs nested code signed first).
+# Signs Sparkle's helpers, then the framework, then the app (codesign needs nested code signed first). The app also gets
+# $APP_ENTITLEMENTS when set.
 sign_app() {
   local identity=$1; shift
-  for item in "$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.app" "$FRAMEWORK" "$APP"; do
+  for item in "$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.app" "$FRAMEWORK"; do
     codesign --force --sign "$identity" "$@" "$item"
   done
+  local entitlements=()
+  [[ -n "${APP_ENTITLEMENTS:-}" ]] && entitlements=(--entitlements "$APP_ENTITLEMENTS")
+  codesign --force --sign "$identity" "$@" "${entitlements[@]}" "$APP"
 }
 
 SPARKLE_KEYS=""
@@ -109,7 +113,8 @@ PLIST
 if [[ "${1:-}" == "--release" ]]; then
   IDENTITY=$(security find-identity -v -p codesigning | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)
   [[ -n "$IDENTITY" ]] || { echo "No 'Developer ID Application' certificate in the keychain" >&2; exit 1; }
-  sign_app "$IDENTITY" --options runtime --timestamp
+  # The hardened runtime blocks location access (sunrise and sunset schedules) without the entitlement.
+  APP_ENTITLEMENTS=Packaging/DisplayDeck.entitlements sign_app "$IDENTITY" --options runtime --timestamp
   codesign --verify --deep --strict --verbose=2 "$APP"
 
   DMG=build/DisplayDeck-$VERSION.dmg
