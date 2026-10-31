@@ -3,6 +3,11 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.7
+
+### New
+- **Schedules.** Apply a preset by itself at a time of day, or at sunrise or sunset (with an offset like 30 minutes before), in *Settings → Presets → Schedule*. Changes fade in over two minutes and stop if you adjust the brightness meanwhile. If your Mac was asleep when a rule was due, it catches up when it wakes. Sunrise and sunset are worked out on your Mac from your location, which is asked for once, rounded to about 10 km and never sent anywhere.
+
 ## 1.6
 
 ### New
