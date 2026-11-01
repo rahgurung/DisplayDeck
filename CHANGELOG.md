@@ -3,6 +3,11 @@
 Release notes for each version. The Release workflow publishes the section matching the version it releases;
 patch releases (e.g. 1.1.1) fall back to the list of commits since the previous release.
 
+## 1.8
+
+### New
+- **Shortcuts app actions.** Use DisplayDeck in Apple's Shortcuts app: set a display's brightness, contrast or volume, apply a preset, switch a monitor's input, or turn mirroring on or off. Put them in your own shortcuts, or in automations that run by themselves, for example when you open an app, connect a display or turn on a Focus.
+
 ## 1.7
 
 ### New
