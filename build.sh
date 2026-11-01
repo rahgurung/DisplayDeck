@@ -63,12 +63,13 @@ swiftc -O -wmo -parse-as-library -swift-version 5 -module-name DisplayDeck \
 
 # Shortcuts actions are listed from Metadata.appintents, which Xcode's appintentsmetadataprocessor makes. The Command
 # Line Tools don't include it: without it the app works, but its actions don't appear in the Shortcuts app.
-if PROCESSOR=$(xcrun --find appintentsmetadataprocessor 2>/dev/null); then
+if PROCESSOR=$(xcrun --find appintentsmetadataprocessor 2>/dev/null) \
+  && XCODE_BUILD=$(xcodebuild -version 2>/dev/null | awk '/Build version/ {print $3}') && [[ -n "$XCODE_BUILD" ]]; then
   print -l "$PWD"/Sources/*.swift > build/sources.txt
   echo "$PWD/build/DisplayDeck.swiftconstvalues" > build/constvalues.txt
   "$PROCESSOR" --output "$APP/Contents/Resources" --module-name DisplayDeck \
     --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" \
-    --sdk-root "$(xcrun --show-sdk-path)" --xcode-version "$(xcodebuild -version | awk '/Build version/ {print $3}')" \
+    --sdk-root "$(xcrun --show-sdk-path)" --xcode-version "$XCODE_BUILD" \
     --platform-family macOS --deployment-target 14.0 --target-triple arm64-apple-macos14.0 \
     --source-file-list build/sources.txt --swift-const-vals-list build/constvalues.txt --force > /dev/null
 else

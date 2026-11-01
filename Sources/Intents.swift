@@ -17,13 +17,16 @@ struct DisplayEntity: AppEntity {
 }
 
 struct DisplayQuery: EntityQuery {
+    /// Every saved display, connected or not yet (right after launch or wake): the action then waits for it.
     func entities(for identifiers: [String]) async throws -> [DisplayEntity] {
-        try await suggestedEntities().filter { identifiers.contains($0.id) }
+        await MainActor.run { identifiers.map { DisplayEntity(id: $0, name: IntentContext.name(for: $0)) } }
     }
 
     func suggestedEntities() async throws -> [DisplayEntity] {
         try await MainActor.run {
-            try IntentContext.app().manager.displays.map { DisplayEntity(id: $0.monitorKey, name: $0.name) }
+            let displays = try IntentContext.app().manager.displays.map { DisplayEntity(id: $0.monitorKey, name: $0.name) }
+            IntentContext.remember(displays.map { ($0.id, $0.name) })
+            return displays
         }
     }
 }
@@ -41,15 +44,18 @@ struct InputEntity: AppEntity {
 }
 
 struct InputQuery: EntityQuery {
+    /// Every saved input, whether or not its monitor is connected and has listed its inputs yet.
     func entities(for identifiers: [String]) async throws -> [InputEntity] {
-        try await suggestedEntities().filter { identifiers.contains($0.id) }
+        await MainActor.run { identifiers.map { InputEntity(id: $0, name: IntentContext.name(for: $0)) } }
     }
 
     func suggestedEntities() async throws -> [InputEntity] {
         try await MainActor.run {
-            try IntentContext.app().manager.displays.flatMap { display in
+            let inputs = try IntentContext.app().manager.displays.flatMap { display in
                 display.inputs.map { InputEntity(id: "\(display.monitorKey)|\($0.value)", name: "\(display.name) – \(display.label(for: $0))") }
             }
+            IntentContext.remember(inputs.map { ($0.id, $0.name) })
+            return inputs
         }
     }
 }
@@ -126,7 +132,7 @@ struct ApplyPresetIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let app = try IntentContext.app()
         guard let saved = app.presets.preset(preset.id) else { throw IntentFailure("The preset “\(preset.name)” no longer exists.") }
-        await IntentContext.waitForDisplays()
+        await IntentContext.waitForDisplays(Set(saved.levels.keys))
         app.presets.apply(saved, to: app.manager.displays)
         Telemetry.send("Intent.performed", payload: ["action": "preset"])
         return .result()
@@ -144,9 +150,9 @@ struct SwitchInputIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let parts = input.id.split(separator: "|")
-        let name = String(input.name.split(separator: "–").first ?? "").trimmingCharacters(in: .whitespaces)
         guard parts.count == 2, let value = UInt8(parts[1]) else { throw IntentFailure("Choose the input again.") }
-        let target = try await IntentContext.connected(String(parts[0]), named: name)
+        let key = String(parts[0])
+        let target = try await IntentContext.connected(key, named: IntentContext.name(for: key))
         guard let source = target.inputs.first(where: { $0.value == value }) else {
             throw IntentFailure("\(target.name) doesn’t list that input any more.")
         }
@@ -166,7 +172,10 @@ struct SetMirroringIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try IntentContext.app().manager.setMirrored(on)
+        let manager = try IntentContext.app().manager
+        await IntentContext.waitForDisplays([])
+        guard manager.displays.count > 1 else { throw IntentFailure("Mirroring needs at least two displays.") }
+        manager.setMirrored(on)
         Telemetry.send("Intent.performed", payload: ["action": "mirroring"])
         return .result()
     }
@@ -193,25 +202,40 @@ enum IntentContext {
         return delegate
     }
 
-    /// Waits (up to 10 s) for the first seconds after launch and for monitors connecting over DDC, which report
-    /// placeholder levels meanwhile.
-    static func waitForDisplays() async {
+    /// Waits (up to 10 s) until displays have finished connecting: every listed one `settled`, and, in the first
+    /// seconds after launch, the ones in `needed` listed (macOS can report a monitor a moment after the built-in one).
+    static func waitForDisplays(_ needed: Set<String>) async {
         for _ in 0..<40 {
-            let settling = Date().timeIntervalSince(launched) < 5
-            guard settling || ((try? app())?.manager.displays.contains(where: \.probing) ?? false) else { return }
+            guard let displays = try? app().manager.displays else { return }
+            let unsettled = displays.contains { !$0.settled && !$0.isOff }
+            let missing = !needed.isSubset(of: Set(displays.map(\.monitorKey))) && Date().timeIntervalSince(launched) < 5
+            guard unsettled || missing else { return }
             try? await Task.sleep(for: .milliseconds(250))
         }
     }
 
-    /// The display, once it's listed and connected (up to 10 s, e.g. right after launch or a wake).
+    /// The display, once it's listed and has finished connecting (up to 10 s, e.g. right after launch or a wake).
     static func connected(_ monitorKey: String, named name: String) async throws -> Display {
         for _ in 0..<40 {
-            if let display = try app().manager.displays.first(where: { $0.monitorKey == monitorKey }), !display.probing {
+            if let display = try app().manager.displays.first(where: { $0.monitorKey == monitorKey }) {
                 guard !display.isOff else { throw IntentFailure("\(name) is turned off in DisplayDeck.") }
-                return display
+                if display.settled { return display }
             }
             try await Task.sleep(for: .milliseconds(250))
         }
         throw IntentFailure("\(name) isn’t connected.")
+    }
+
+    /// Names of displays and inputs by their ids, remembered from the pickers, so a saved shortcut can name a display
+    /// that isn't connected (yet).
+    private static var names = UserDefaults.standard.dictionary(forKey: "intentNames") as? [String: String] ?? [:]
+
+    static func name(for id: String) -> String {
+        names[id] ?? (try? app().manager.displays.first { $0.monitorKey == id }?.name) ?? "The display"
+    }
+
+    static func remember(_ named: [(id: String, name: String)]) {
+        for (id, name) in named { names[id] = name }
+        UserDefaults.standard.set(names, forKey: "intentNames")
     }
 }
