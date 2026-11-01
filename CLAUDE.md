@@ -133,8 +133,10 @@ Instead, render the real SwiftUI views offscreen:
   DisplayBuddy offer, with sources, plus "Our angle"), then Why / Scope. Mark unverified claims as such.
 - Website links to other sites open in a new tab (`target="_blank" rel="noopener"`), including links made in
   scripts. Download buttons and links within the site don't.
-- Keep `docs/compare.html` honest: every ✓ / Pro / — needs a source; otherwise "Not checked". Planned items link to issues.
-  Update it when a planned feature ships.
+- Keep `docs/compare.html` honest: every ✓ / Pro needs a source from the app's own site, docs or repository (listed under
+  Sources); — means it isn't mentioned there (the legend says so). Planned items link to issues. Update it when a
+  feature ships, and the "Last checked" date when re-checking. Vendors' FAQ answers can be hidden in the page's
+  structured data (JSON-LD), not its visible text.
 
 ## DDC and hardware notes
 
