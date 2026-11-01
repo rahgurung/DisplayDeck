@@ -40,6 +40,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 | ◐ **Contrast** | Adjust contrast on monitors that support it. |
 | 🖥️ **Resolution & refresh rate** | Switch per display in two clicks, no System Settings detour. |
 | 🎚️ **Presets** | Save every display's brightness, contrast and volume as a preset like "Day" or "Night", then apply it from the menu or a shortcut (*Settings → Presets*). |
+| ⚡️ **Shortcuts app** | Actions for Apple's Shortcuts app: set a display's brightness, contrast or volume, apply a preset, switch a monitor's input, and turn mirroring on or off. Use them in your own shortcuts, automations and Focus modes. |
 | 🌅 **Schedules** | Apply a preset by itself at a time of day, or at sunrise or sunset, fading in over two minutes. |
 | 🪞 **Mirroring** | Toggle display mirroring straight from the menu. |
 | ⏻ **Turn a display off** | Optional: a button on each display's card puts the monitor in standby, or turns its picture black if it can't sleep. Click again to turn it back on. Off by default; turn it on in *Settings → Displays*. |
@@ -101,7 +102,7 @@ Release builds send a few **anonymous** usage signals to [TelemetryDeck](https:/
 
 - App and macOS version, region
 - How many displays are connected and how each is controlled (DDC / software / Apple)
-- Which options are on, and when the menu or settings window is opened, a monitor's input is switched, a preset is applied or a display is turned off, and how many schedule rules you have
+- Which options are on, and when the menu or settings window is opened, a monitor's input is switched, a preset is applied, a display is turned off or a Shortcuts action runs, and how many schedule rules you have
 
 Release builds also check `https://displaydeck.rahulgurung.com/appcast.xml` once a day for new versions (turn it off in **Settings → General**). That request sends nothing but a normal web request; Sparkle's optional system profile is off.
 
@@ -111,7 +112,8 @@ Each install is identified only by a hashed random ID. Nothing about you, your f
 
 ## 🛠️ Build from source
 
-No Xcode project. You only need the Command Line Tools (`xcode-select --install`).
+No Xcode project. You only need the Command Line Tools (`xcode-select --install`). With Xcode installed, the build also
+makes the metadata the Shortcuts app needs to list DisplayDeck's actions; without it, everything else works.
 
 ```sh
 git clone https://github.com/rahgurung/DisplayDeck.git

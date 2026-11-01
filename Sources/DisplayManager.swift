@@ -44,6 +44,9 @@ final class Display: Identifiable {
     /// Names the user gave this monitor's inputs, by input value.
     private(set) var inputNames: [UInt8: String] = [:]
     var probing: Bool
+    /// Done reading the monitor after connecting: brightness, contrast, volume and then its inputs (a couple of seconds
+    /// after `probing` ends). Shortcuts actions wait for this.
+    @ObservationIgnored private(set) var settled = false
     var modes: [ModeOption] = []
     var currentMode: ModeOption?
 
@@ -62,6 +65,7 @@ final class Display: Identifiable {
             source = ddc == nil ? .gamma : .ddc
             probing = ddc != nil
         }
+        settled = source != .ddc
         reloadModes()
         // Turned off before a reload (wake, hot-plug): a monitor in standby stays so, and is probed once it's woken.
         if let standby = Self.turnedOff[monitorKey] {
@@ -97,6 +101,7 @@ final class Display: Identifiable {
                     self.probeInputs()
                 } else {
                     self.source = .gamma  // Monitor didn't answer; fall back to software dimming.
+                    self.settled = true
                 }
                 self.probing = false
                 // If following the built-in display, start now rather than at the next check, so a key press right
@@ -220,6 +225,7 @@ final class Display: Identifiable {
         var inputs = listed.isEmpty && currentInput != nil ? InputSource.common(vendor: vendor) : listed
         if let current = currentInput, !inputs.contains(current) { inputs.append(current) }
         self.inputs = inputs
+        settled = true  // The last reading after connecting; contrast and volume were answered before it.
     }
 
     func reloadModes() {

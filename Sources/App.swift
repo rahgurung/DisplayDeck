@@ -25,6 +25,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var presets = Presets()
     lazy var schedule = Schedule(manager: manager, presets: presets)
 
+    override init() {
+        super.init()
+        // Before any Shortcuts action can run. The app delegate is always created on the main thread.
+        MainActor.assumeIsolated {
+            IntentContext.delegate = self
+            IntentContext.launched = Date()
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         ReleaseApp.pause()
         quitOnSIGTERM()
