@@ -6,7 +6,7 @@
 
 **Your monitors, from the menu bar.**
 
-Brightness, contrast and volume for external displays, plus brightness keys that actually work on them.
+Brightness, contrast, volume and input switching for external displays, plus brightness keys that actually work on them.
 <br>A tiny, free and open-source macOS app.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/rahgurung/DisplayDeck/ci.yml?branch=main&style=flat-square&label=build)](https://github.com/rahgurung/DisplayDeck/actions/workflows/ci.yml)
@@ -17,7 +17,7 @@ Brightness, contrast and volume for external displays, plus brightness keys that
 [![Swift](https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white)](Sources)
 [![MIT License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
 
-[**Download**](https://github.com/rahgurung/DisplayDeck/releases/latest) · [**Website**](https://displaydeck.rahulgurung.com) · [Install](#-install) · [Features](#-features) · [Build from source](#%EF%B8%8F-build-from-source)
+[**Download**](https://github.com/rahgurung/DisplayDeck/releases/latest) · [**Website**](https://displaydeck.rahulgurung.com) · [**Compare with other apps**](https://displaydeck.rahulgurung.com/compare) · [Install](#-install) · [Features](#-features) · [Build from source](#%EF%B8%8F-build-from-source)
 
 <br>
 
